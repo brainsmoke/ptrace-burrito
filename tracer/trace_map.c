@@ -82,7 +82,7 @@ trace_t *get_trace(trace_map_t *map, pid_t pid)
 		list = list->next;
 	}
 
-	fatal_error("no trace with pid %d", pid);
+	//fatal_error("no trace with pid %d", pid);
 	return NULL;
 }
 
@@ -105,7 +105,7 @@ void put_trace(trace_map_t *map, trace_t *t)
 	map->count++;
 }
 
-void del_trace(trace_map_t *map, pid_t pid)
+trace_t *pop_trace(trace_map_t *map, pid_t pid)
 {
 	unsigned int hash = hash_pid(pid);
 	trace_ll_t prev = (trace_ll_t){ NULL, map->bucket[hash] };
@@ -117,15 +117,23 @@ void del_trace(trace_map_t *map, pid_t pid)
 		{
 			del = iter->next;
 			iter->next = iter->next->next;
-			free(del->trace);
+			trace_t *t = del->trace;
 			free(del);
 			map->count--;
 			map->bucket[hash] = prev.next;
-			return;
+			return t;
 		}
 		iter = iter->next;
 	}
 
-	fatal_error("no trace with pid %d to remove", pid);
+	return NULL;
+}
+
+void del_trace(trace_map_t *map, pid_t pid)
+{
+	trace_t *t = pop_trace(map, pid);
+	if (t == NULL)
+		fatal_error("no trace with pid %d to remove", pid);
+	free(t);
 }
 

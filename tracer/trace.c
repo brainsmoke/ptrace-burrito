@@ -28,7 +28,7 @@ enum
 	STEPTRACE = 0x04,
 };
 
-static trace_t *new_trace(pid_t pid)
+static trace_t *new_trace(pid_t pid, int status)
 {
 	trace_t *t = try_malloc(sizeof(trace_t));
 	*t = (trace_t)
@@ -38,9 +38,9 @@ static trace_t *new_trace(pid_t pid)
 		.flags = 0,
 		.signal = 0,
 		.deadbeef = { 0xDE, 0xAD, 0xBE, 0xAF },
+		.status = status,
 	};
 
-	waitpid(pid, &t->status, __WALL);
 	if ( WIFEXITED(t->status) || WIFSIGNALED(t->status) )
 		abort();
 
@@ -158,7 +158,9 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 {
 	int status, event, is_step;
 	trace_map_t *map = create_trace_map();
-	trace_t *t = new_trace(pid), *parent = NULL;
+
+	waitpid(pid, &status, __WALL);
+	trace_t *t = new_trace(pid, status), *parent = NULL;
 	put_trace(map, t);
 
 	if (plug->init)
@@ -187,16 +189,26 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 				break;
 		}
 
-		pid = plug->pid_selector(plug->data);
-		pid = waitpid(pid, &status, __WALL);
+		pid_t pid_select = plug->pid_selector(plug->data);
 
-		if (pid < 0)
-			fatal_error("waitpid: %s", strerror(errno));
+		for(;;)
+		{
+			pid = waitpid(pid_select, &status, __WALL);
 
-		if ( WIFEXITED(status) || WIFSIGNALED(status) || !WIFSTOPPED(status) )
-			fatal_error("unexpected behaviour: process in unexpected state");
+			if (pid < 0)
+				fatal_error("waitpid: %s", strerror(errno));
 
-		t = get_trace(map, pid);
+			if ( WIFEXITED(status) || WIFSIGNALED(status) || !WIFSTOPPED(status) )
+				fatal_error("unexpected behaviour: process in unexpected state");
+
+			t = get_trace(map, pid);
+
+			if (t == NULL)
+				put_trace(map, new_trace(pid, status));
+			else
+				break;
+		}
+
 		t->status = status;
 		t->signal = (status>>8) & 0xff;
 		event = (status>>16) & 0xff;
@@ -214,8 +226,14 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		else if (event)
 		{
 			parent = t;
-			t = new_trace((pid_t)get_eventmsg(t));
-			put_trace(map, t);
+			pid = (pid_t)get_eventmsg(parent);
+			t = get_trace(map, pid);
+			if (t == NULL)
+			{
+				waitpid(pid, &status, __WALL);
+				t = new_trace(pid, status);
+				put_trace(map, t);
+			}
 		}
 		else if ( t->signal )
 			t->state = SIGNAL;

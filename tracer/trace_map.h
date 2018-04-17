@@ -17,6 +17,7 @@ void free_trace_map(trace_map_t *map);
 
 trace_t *get_trace(trace_map_t *map, pid_t pid);
 void put_trace(trace_map_t *map, trace_t *trace);
+trace_t *pop_trace(trace_map_t *map, pid_t pid);
 void del_trace(trace_map_t *map, pid_t pid);
 
 #endif /* TRACE_MAP_H */

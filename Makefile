@@ -9,7 +9,6 @@ STRIP=strip --strip-all
 TEST_TARGETS=\
 	test/testcases/getppid\
 	test/testcases/hello_world\
-	test/testcases/intint\
 	test/testcases/pidgallore\
 	test/testcases/sigalrm\
 	test/testcases/sigpipe\
@@ -27,14 +26,15 @@ TEST_TARGETS=\
 	test/testcases/timestamps\
 	test/testcases/sigchld\
 	test/testcases/sigprocmask\
-	test/testcases/sysall\
 	test/testcases/killsegv\
 	test/testcases/fstat\
-	test/testcases/newns\
-	test/testcases/environ\
-	test/testcases/newfs\
 	test/testcases/rdtrunc
-#	test/testcases/raise
+#	test/testcases/environ\
+#	test/testcases/newfs\
+#	test/testcases/newns\
+#	test/testcases/sysall\
+#	test/testcases/raise\
+#	test/testcases/intint\
 
 TARGETS=$(TEST_TARGETS)\
 	test/bdiff\
@@ -55,9 +55,9 @@ TRACER_OBJECTS=\
 	tracer/process.o
 
 SYSCALLS_OBJECTS=\
-	syscalls/syscall_info.o\
 	syscalls/debug_syscalls.o\
 	syscalls/debug_wrap.o
+#	syscalls/syscall_info.o\
 
 OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS)
 
