@@ -33,8 +33,13 @@ int signal_restartsys(long syscall, long retval)
 int signal_pending(long syscall, long retval)
 {
 	return signal_restartsys(syscall, retval) ||
+#ifdef __NR_sigreturn
 	       ( (retval == -EPIPE) && (syscall != __NR_sigreturn) ) ||
-	       (syscall == __NR_rt_sigprocmask) ||
-	       (syscall == __NR_sigprocmask);
+#endif
+	       ( (retval == -EPIPE) && (syscall != __NR_rt_sigreturn) ) ||
+#ifdef __NR_sigreturn
+	       (syscall == __NR_sigprocmask) ||
+#endif
+	       (syscall == __NR_rt_sigprocmask);
 }
 

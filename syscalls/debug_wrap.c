@@ -55,7 +55,12 @@ static void print_signal(trace_t *t, void *data)
 	fprintf(stderr, "%5d  ", t->pid);
 	if ( is_ts )
 	{
+#ifdef __x86_64__
+		uint64_t ts = (((uint64_t)(t->regs.rdx&&0xffffffff))<<32)|(uint32_t)(t->regs.rax&0xffffffff);
+#endif
+#ifdef __i386__
 		uint64_t ts = (((uint64_t)t->regs.edx)<<32)|(uint32_t)t->regs.eax;
+#endif
 		fprintf(stderr, "%sTIMESTAMP%s %llu\n", hi, n, (unsigned long long)ts);
 	}
 	else if ( t->signal )
