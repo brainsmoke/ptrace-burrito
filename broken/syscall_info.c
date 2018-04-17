@@ -584,9 +584,15 @@ static syscall_info_t syscall_info_array[] =
 	[__NR_mmap2] = { .argc = 6, .action = EMULATE, .copy = mmap_copy }, /* XXX */
 	[__NR_truncate64] = { .argc = 3, .action = EMULATE },  /* low+high */
 	[__NR_ftruncate64] = { .argc = 3, .action = EMULATE, .fd_args = _ARG(0) }, /* low+high */
+#ifdef __NR_stat64
 	[__NR_stat64] = { .argc = 2, .action = EMULATE, .copy = stat64_copy },
+#endif
+#ifdef __NR_lstat64
 	[__NR_lstat64] = { .argc = 2, .action = EMULATE, .copy = stat64_copy },
+#endif
+#ifdef __NR_fstat64
 	[__NR_fstat64] = { .argc = 2, .action = EMULATE, .copy = stat64_copy, .fd_args = _ARG(0) },
+#endif
 	[__NR_lchown32] = { .argc = 3, .action = EMULATE },
 	[__NR_getuid32] = { .argc = 0, .action = EMULATE },
 	[__NR_getgid32] = { .argc = 0, .action = EMULATE },
@@ -612,8 +618,12 @@ static syscall_info_t syscall_info_array[] =
 	[__NR_madvise] = { .argc = 0 },
 	[__NR_madvise1] = { .argc = 0 },
 */
+#ifdef __NR_getdents64
 	[__NR_getdents64] = { .argc = 3, .action = EMULATE, .copy=read_copy, .fd_args = _ARG(0) },
+#endif
+#ifdef __NR_fcntl64
 	[__NR_fcntl64] = { .argc = 3, .action = EMULATE/*NEWFD*/, .fd_args = _ARG(0) },
+#endif
  /* 223 is unused */ 
 	[__NR_gettid] = { .argc = 0, .action = EMULATE },
 	[__NR_readahead] = { .argc = 3, .action = EMULATE, .fd_args = _ARG(0) },
@@ -664,8 +674,12 @@ static syscall_info_t syscall_info_array[] =
 	[__NR_clock_gettime] = { .argc = 2, .action = EMULATE, .copy = timespec_copy },
 	[__NR_clock_getres] = { .argc = 2, .action = EMULATE, .copy = timespec_copy }, /* XXX */
 	[__NR_clock_nanosleep] = { .argc = 4, .action = EMULATE, .copy = nanosleep_copy }, /* XXX */
+#ifdef __NR_statfs64
 	[__NR_statfs64] = { .argc = 3, .action = EMULATE, .copy = statfs64_copy },
+#endif
+#ifdef __NR_fstatfs64
 	[__NR_fstatfs64] = { .argc = 3, .action = EMULATE, .copy = statfs64_copy, .fd_args = _ARG(0) },
+#endif
 	[__NR_tgkill] = { .argc = 3, .action = EMULATE },
 	[__NR_utimes] = { .argc = 2, .action = EMULATE },
 /*
@@ -698,7 +712,9 @@ static syscall_info_t syscall_info_array[] =
 	[__NR_mknodat] = { .argc = 4, .action = EMULATE, .fd_args = _ARG(0) },
 	[__NR_fchownat] = { .argc = 5, .action = EMULATE, .fd_args = _ARG(0) },
 	[__NR_futimesat] = { .argc = 3, .action = EMULATE, .fd_args = _ARG(0) },
+#ifdef __NR_fstatat64
 	[__NR_fstatat64] = { .argc = 4, .action = EMULATE, .copy = statat64_copy, .fd_args = _ARG(0) },
+#endif
 	[__NR_unlinkat] = { .argc = 3, .action = EMULATE, .fd_args = _ARG(0) },
 	[__NR_renameat] = { .argc = 4, .action = EMULATE, .fd_args = _ARG(0)|_ARG(2) },
 	[__NR_linkat] = { .argc = 4, .action = EMULATE, .fd_args = _ARG(0)|_ARG(2) },
