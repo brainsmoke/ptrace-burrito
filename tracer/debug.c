@@ -48,7 +48,7 @@ const char *registers_desc[] =
 #endif
 
 #ifdef __x86_64__
-#error structure has changed, needs to be retested
+//#error structure has changed, needs to be retested
 
 const char *trace_desc[] =
 {
@@ -58,15 +58,16 @@ const char *trace_desc[] =
 	"    [         r11         ]    [         r10         ]",
 	"    [         r9          ]    [         r8          ]",
 	"    [         rax         ]    [         rcx         ]",
-	"    [         rsi         ]    [         rdi         ]",
-	"    [       orig_rax      ]    [         rip         ]",
-	"    [          cs         ]    [        eflags       ]",
-	"    [         rsp         ]    [          ss         ]",
-	"    [       fs_base       ]    [        gs_base      ]",
-	"    [          ds         ]    [          es         ]",
-	"    [          fs         ]    [          gs         ]",
-	"    [dead beef] st sg ex fl    [   pid   ] [  status ]",
-	"    [        syscall      ]    [        *data        ]",
+	"    [         rdx         ]    [         rsi         ]",
+	"    [         rdi         ]    [       orig_rax      ]",
+	"    [         rip         ]    [          cs         ]",
+	"    [        eflags       ]    [         rsp         ]",
+	"    [          ss         ]    [       fs_base       ]",
+	"    [        gs_base      ]    [          ds         ]",
+	"    [          es         ]    [          fs         ]",
+	"    [          gs         ]    [dead beef] st sg ex fl",
+	"    [   pid   ] [  status ]    [        syscall      ]",
+	"    [        *data        ]",
 };
 
 const char *registers_desc[] =
@@ -77,13 +78,14 @@ const char *registers_desc[] =
 	"    [         r11         ]    [         r10         ]",
 	"    [         r9          ]    [         r8          ]",
 	"    [         rax         ]    [         rcx         ]",
-	"    [         rsi         ]    [         rdi         ]",
-	"    [       orig_rax      ]    [         rip         ]",
-	"    [          cs         ]    [        eflags       ]",
-	"    [         rsp         ]    [          ss         ]",
-	"    [       fs_base       ]    [        gs_base      ]",
-	"    [          ds         ]    [          es         ]",
-	"    [          fs         ]    [          gs         ]",
+	"    [         rdx         ]    [         rsi         ]",
+	"    [         rdi         ]    [       orig_rax      ]",
+	"    [         rip         ]    [          cs         ]",
+	"    [        eflags       ]    [         rsp         ]",
+	"    [          ss         ]    [       fs_base       ]",
+	"    [        gs_base      ]    [          ds         ]",
+	"    [          es         ]    [          fs         ]",
+	"    [          gs         ]",
 };
 
 #endif
@@ -91,7 +93,7 @@ const char *registers_desc[] =
 static inline long min(long a, long b) { return a<b ? a:b; }
 static inline long max(long a, long b) { return a>b ? a:b; }
 
-static const char *hi = "\033[0;34m", *color = "\033[0;31m", *reset = "\033[m";
+static const char *hi = "\033[0;34m",/* *color = "\033[0;31m",*/ *reset = "\033[m";
 
 /* Prints up to 16 characters in hexdump style with optional colors
  * if `ascii' is non-zero, an additional ascii representation is printed
@@ -224,7 +226,7 @@ void print_trace(trace_t *t)
 void print_trace_diff(trace_t *new, trace_t *old)
 {
 	printhex_diff_descr(new, sizeof(trace_t),
-	                    old, sizeof(trace_t), 4, 0, trace_desc);
+	                    old, sizeof(trace_t), sizeof(long), 0, trace_desc);
 }
 
 void print_trace_if_diff(trace_t *new, trace_t *old)
@@ -241,7 +243,7 @@ void print_registers(registers_t *regs)
 void print_registers_diff(registers_t *new, registers_t *old)
 {
 	printhex_diff_descr(new, sizeof(registers_t),
-	                    old, sizeof(registers_t), 4, 0, registers_desc);
+	                    old, sizeof(registers_t), sizeof(long), 0, registers_desc);
 }
 
 void print_registers_if_diff(registers_t *new, registers_t *old)
@@ -279,7 +281,7 @@ void print_stat(const struct stat64 *s)
 	"    dev_t     st_dev;     [%llu %llu] /* ID of device containing file */\n"
 	"    ino_t     st_ino;     [%llu] /* inode number */\n"
 	"    mode_t    st_mode;    [%u] /* protection */\n"
-	"    nlink_t   st_nlink;   [%u] /* number of hard links */\n"
+	"    nlink_t   st_nlink;   [%lu] /* number of hard links */\n"
 	"    uid_t     st_uid;     [%u] /* user ID of owner */\n"
 	"    gid_t     st_gid;     [%u] /* group ID of owner */\n"
 	"    dev_t     st_rdev;    [%llu %llu] /* device ID (if special file) */\n"
@@ -290,11 +292,11 @@ void print_stat(const struct stat64 *s)
 	"    time_t    st_mtime;   [%lu] /* time of last modification */\n"
 	"    time_t    st_ctime;   [%lu] /* time of last status change */\n"
 	"};\n",
-	s->st_dev>>8, s->st_dev&255,
-	s->st_ino, s->st_mode,
+	(unsigned long long)s->st_dev>>8, (unsigned long long)s->st_dev&255,
+	(unsigned long long)s->st_ino, s->st_mode,
 	s->st_nlink, s->st_uid, s->st_gid,
-	s->st_rdev>>8, s->st_rdev&255,
-	s->st_size, s->st_blksize, s->st_blocks,
+	(unsigned long long)s->st_rdev>>8, (unsigned long long)s->st_rdev&255,
+	(unsigned long long)s->st_size, s->st_blksize, (unsigned long long)s->st_blocks,
 	s->st_atime, s->st_mtime, s->st_ctime);
 	fprintf(stderr, "%lu\n", s->st_atime);
 }

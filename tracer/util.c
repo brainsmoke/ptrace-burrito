@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/resource.h>
 
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
@@ -71,6 +72,20 @@ uint64_t get_timestamp(void)
 	return (uint64_t)hi << 32 | lo;
 }
 
+#endif
+
+#ifdef __i386__
+#define ARCH_MMAP_SYSCALL __NR_mmap2
+#define ARCH_STAT_SYSCALL __NR_stat64
+#define ARCH_LSTAT_SYSCALL __NR_lstat64
+#define ARCH_FSTAT_SYSCALL __NR_fstat64
+#endif
+
+#ifdef __x86_64__
+#define ARCH_MMAP_SYSCALL __NR_mmap
+#define ARCH_STAT_SYSCALL __NR_stat
+#define ARCH_LSTAT_SYSCALL __NR_lstat
+#define ARCH_FSTAT_SYSCALL __NR_fstat64
 #endif
 
 #ifdef __i386__
@@ -178,6 +193,112 @@ void emulate_tsc(trace_t *t, uint64_t timestamp)
 
 #endif
 
+
+#ifdef __x86_64__
+
+#define SYSCALL_OPCODE_SIZE 2
+#define TRAP_FLAG 0x00000100
+#define RDTSC_OPCODE_SIZE 2
+#define RDTSC_OPCODE "\x0f\x31"
+
+unsigned long get_syscall(trace_t *t)
+{
+	return t->regs.orig_rax;
+}
+
+void set_syscall(trace_t *t, unsigned long val)
+{
+	t->regs.orig_rax = val;
+}
+
+unsigned long get_result(trace_t *t)
+{
+	return t->regs.rax;
+}
+
+void set_result(trace_t *t, unsigned long val)
+{
+	t->regs.rax = val;
+}
+
+unsigned long get_arg(trace_t *t, int number)
+{
+	switch (number)
+	{
+		case 0:
+			return t->regs.rdi;
+		case 1:
+			return t->regs.rsi;
+		case 2:
+			return t->regs.rdx;
+		case 3:
+			return t->regs.r10;
+		case 4:
+			return t->regs.r8;
+		case 5:
+			return t->regs.r9;
+		default:
+			fatal_error("wrong argument number");
+			return -1; /* not used */
+	}
+}
+
+void set_arg(trace_t *t, int number, unsigned long val)
+{
+	switch (number)
+	{
+		case 0:
+			t->regs.rdi = val; break;
+		case 1:
+			t->regs.rsi = val; break;
+		case 2:
+			t->regs.rdx = val; break;
+		case 3:
+			t->regs.r10 = val; break;
+		case 4:
+			t->regs.r8 = val; break;
+		case 5:
+			t->regs.r9 = val; break;
+		default:
+			fatal_error("wrong argument number");
+	}
+}
+
+int get_trap_flag(trace_t *t)
+{
+	return ( t->regs.eflags & TRAP_FLAG ) ? 1 : 0;
+}
+
+void set_trap_flag(trace_t *t, int val)
+{
+	if (val)
+		t->regs.eflags |= TRAP_FLAG;
+	else
+		t->regs.eflags &=~ TRAP_FLAG;
+}
+
+void reset_syscall(trace_t *t)
+{
+	t->regs.rip -= SYSCALL_OPCODE_SIZE;
+	t->regs.rax = t->regs.orig_rax;
+}
+
+int program_counter_at_tsc(trace_t *t)
+{
+	char opcode[2];
+	memload(t->pid, opcode, (void *)t->regs.rip, 2);
+	return (memcmp(opcode, RDTSC_OPCODE, 2) == 0) ? 1:0;
+}
+
+void emulate_tsc(trace_t *t, uint64_t timestamp)
+{
+	t->regs.rax = (uint32_t)timestamp;
+	t->regs.rdx = (uint32_t)(timestamp>>32);
+	t->regs.rip += RDTSC_OPCODE_SIZE;
+}
+
+#endif
+
 void get_args(trace_t *t, long *args, int argc)
 {
 	int i;
@@ -200,7 +321,13 @@ void skip_syscall(trace_t *t)
 
 void undo_syscall(trace_t *t)
 {
+#ifdef __i386__
 	long call = t->regs.orig_eax;
+#elif defined(__x86_64__)
+	long call = t->regs.orig_rax;
+#else
+#error "unimplemented"
+#endif
 
 	skip_syscall(t);
 
@@ -341,7 +468,7 @@ long inject_data_syscall(trace_t *t, long call, arg_t args[], int argc,
 	long mmap_args[] = { (long)NULL, mmap_size, PROT_READ|PROT_WRITE,
 	                     MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 };
 
-	base_addr = inject_syscall(t, __NR_mmap2, mmap_args, 6, q);
+	base_addr = inject_syscall(t, ARCH_MMAP_SYSCALL, mmap_args, 6, q);
 
 	if ( base_addr < 0 && base_addr >= -516 )
 		fatal_error("mmap failed, %lx", base_addr);
@@ -380,6 +507,8 @@ long inject_data_syscall(trace_t *t, long call, arg_t args[], int argc,
 
 	return result;
 }
+#ifdef __i386__
+
 
 long inject_stat64(trace_t *t, char *file, struct stat64 *s, signal_queue_t *q)
 {
@@ -411,6 +540,8 @@ long inject_fstat64(trace_t *t, int fd, struct stat64 *s, signal_queue_t *q)
 	return inject_data_syscall(t, __NR_fstat64, args, 2, q);
 }
 
+#endif
+
 long inject_readlink(trace_t *t, char *path, char *buf, size_t bufsiz,
                      signal_queue_t *q)
 {
@@ -430,7 +561,7 @@ mmap_data_t mmap_data(trace_t *t, void *laddr, void *raddr, size_t n, /*... ,*/
 	long args[] = { (long)NULL, size, PROT_READ|PROT_WRITE,
 	                MAP_PRIVATE|MAP_ANONYMOUS, -1, 0 };
 
-	long base_addr = inject_syscall(t, __NR_mmap2, args, 6, q);
+	long base_addr = inject_syscall(t, ARCH_MMAP_SYSCALL, args, 6, q);
 
 	if ( base_addr < 0 && base_addr >= -516 )
 		fatal_error("mmap failed, %lx", base_addr);
