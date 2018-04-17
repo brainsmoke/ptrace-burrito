@@ -107,7 +107,7 @@ static char *get_proc_file(pid_t pid, const char *s)
 	int len = snprintf(name, maxlen, "/proc/%u/%s", pid, s);
 
 	if ( (len >= maxlen) || (len < 0) )
-		fatal_error("%s: snprintf failed where it shouldn't", __FUNCTION__);
+		fatal_error("%s: snprintf failed where it shouldn't", __func__);
 
 	return get_link(name);
 }
@@ -128,7 +128,7 @@ char *get_proc_fd(pid_t pid, int fd)
 	int len = snprintf(pidname, 64, "/proc/%u/%d", pid, fd);
 
 	if ( (len >= 64) || (len < 0) )
-		fatal_error("%s: snprintf failed where it shouldn't", __FUNCTION__);
+		fatal_error("%s: snprintf failed where it shouldn't", __func__);
 
 	return get_link(pidname);
 }
