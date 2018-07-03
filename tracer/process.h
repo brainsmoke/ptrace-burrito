@@ -1,6 +1,8 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
+#include <sys/types.h>
+
 void trace_attach(pid_t pid);
 
 pid_t run_traceable(char *path, char *args[], int no_randomize, int notsc);

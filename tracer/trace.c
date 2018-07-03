@@ -26,9 +26,10 @@ enum
 	HOLD      = 0x01,
 	HELD      = 0x02,
 	STEPTRACE = 0x04,
+	DETACH    = 0x08,
 };
 
-static trace_t *new_trace(pid_t pid, int status)
+static trace_t *new_trace(pid_t pid, int status, trace_ctx_t *ctx)
 {
 	trace_t *t = try_malloc(sizeof(trace_t));
 	*t = (trace_t)
@@ -39,6 +40,7 @@ static trace_t *new_trace(pid_t pid, int status)
 		.signal = 0,
 		.deadbeef = { 0xDE, 0xAD, 0xBE, 0xAF },
 		.status = status,
+		.ctx = ctx,
 	};
 
 	if ( WIFEXITED(t->status) || WIFSIGNALED(t->status) )
@@ -79,6 +81,33 @@ void release_process(trace_t *t)
 	t->flags &=~ HOLD;
 	if (t->flags & HELD)
 		try_continue_process(t);
+}
+
+void detach_process(trace_t *t)
+{
+	t->flags |= DETACH;
+	errno = 0;
+	long ret = ptrace(PTRACE_INTERRUPT, t->pid, 0, 0);
+	if ( ret && errno != EIO )
+		fatal_error("ptrace failed: %s", strerror(errno));
+}
+
+void detach_all(trace_ctx_t *ctx)
+{
+	size_t size, i;
+	trace_t **list = trace_list(ctx->map, &size);
+	for (i=0; i<size; i++)
+		detach_process(list[i]);
+	free(list);
+}
+
+static void detach_cleanup(trace_t *t)
+{
+	if (t->flags & STEPTRACE)
+		steptrace_process(t, 0);
+	if (ptrace(PTRACE_DETACH, t->pid, 0, t->signal) != 0)
+		fatal_error("ptrace failed: %s", strerror(errno));
+	del_trace(t->ctx->map, t->pid);
 }
 
 void steptrace_process(trace_t *t, int val)
@@ -157,11 +186,11 @@ static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
 void trace(pid_t pid, tracer_plugin_t *plug)
 {
 	int status, event, is_step;
-	trace_map_t *map = create_trace_map();
+	trace_ctx_t ctx = { .map = create_trace_map() };
 
 	waitpid(pid, &status, __WALL);
-	trace_t *t = new_trace(pid, status), *parent = NULL;
-	put_trace(map, t);
+	trace_t *t = new_trace(pid, status, &ctx), *parent = NULL;
+	put_trace(ctx.map, t);
 
 	if (plug->init)
 		plug->init(plug->data);
@@ -184,14 +213,17 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		if (t->state == STOP)
 		{
 			waitpid(t->pid, NULL, __WALL);
-			del_trace(map, t->pid);
-			if ( trace_map_count(map) == 0 )
+			del_trace(ctx.map, t->pid);
+			if ( trace_map_count(ctx.map) == 0 )
 				break;
 		}
 
+		if ( trace_map_count(ctx.map) == 0 )
+			break;
+
 		pid_t pid_select = plug->pid_selector(plug->data);
 
-		for(;;)
+		while(trace_map_count(ctx.map))
 		{
 			pid = waitpid(pid_select, &status, __WALL);
 
@@ -201,13 +233,18 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 			if ( WIFEXITED(status) || WIFSIGNALED(status) || !WIFSTOPPED(status) )
 				fatal_error("unexpected behaviour: process in unexpected state");
 
-			t = get_trace(map, pid);
+			t = get_trace(ctx.map, pid);
 
 			if (t == NULL)
-				put_trace(map, new_trace(pid, status));
+				put_trace(ctx.map, new_trace(pid, status, &ctx));
+			else if (t->flags & DETACH)
+				detach_cleanup(t);
 			else
 				break;
 		}
+
+		if ( trace_map_count(ctx.map) == 0 )
+			break;
 
 		t->status = status;
 		t->signal = (status>>8) & 0xff;
@@ -227,12 +264,12 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		{
 			parent = t;
 			pid = (pid_t)get_eventmsg(parent);
-			t = get_trace(map, pid);
+			t = get_trace(ctx.map, pid);
 			if (t == NULL)
 			{
 				waitpid(pid, &status, __WALL);
-				t = new_trace(pid, status);
-				put_trace(map, t);
+				t = new_trace(pid, status, &ctx);
+				put_trace(ctx.map, t);
 			}
 		}
 		else if ( t->signal )
@@ -246,6 +283,6 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 	if (plug->final)
 		plug->final(plug->data);
 
-	free_trace_map(map);
+	free_trace_map(ctx.map);
 }
 

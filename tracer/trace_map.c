@@ -1,3 +1,4 @@
+#include <stdlib.h>
 
 #include "trace_map.h"
 #include "errors.h"
@@ -20,6 +21,13 @@ struct trace_map_s
 	trace_ll_t *bucket[TRACE_MAP_BUCKETS];
 	unsigned int count;
 
+};
+
+struct trace_iter_s
+{
+	trace_map_t *map;
+	unsigned int cur_bucket;
+	trace_ll_t *cur;
 };
 
 static unsigned int free_trace_ll(trace_ll_t *list)
@@ -135,5 +143,32 @@ void del_trace(trace_map_t *map, pid_t pid)
 	if (t == NULL)
 		fatal_error("no trace with pid %d to remove", pid);
 	free(t);
+}
+
+static int cmp_trace_by_pid(const void *a, const void *b)
+{
+	return ((trace_t*)a)->pid - ((trace_t*)b)->pid;
+}
+
+trace_t **trace_list(trace_map_t *map, size_t *size)
+{
+	trace_t **list = try_malloc(sizeof(trace_t*)*map->count);
+	*size = map->count;
+	int i,c=0;
+	trace_ll_t *ll;
+	for (i=0; i<TRACE_MAP_BUCKETS; i++)
+		for (ll=map->bucket[i]; ll; ll=ll->next)
+		{
+			if (c >= map->count)
+				fatal_error("trace_map_t contains more traces than map->count");
+			list[c++] = ll->trace;
+		}
+
+	if (c != map->count)
+		fatal_error("trace_map_t contains less traces than map->count");
+
+	qsort(list, map->count, sizeof(trace_t*), cmp_trace_by_pid);
+
+	return list;
 }
 

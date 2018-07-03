@@ -12,7 +12,11 @@
 enum { START, STOP, PRE_CALL, POST_CALL, SIGNAL, EXEC, STEP };
 
 /* The per-process datastructure which maintains state during execution */
-typedef struct trace_s
+
+struct trace_map_s;
+typedef struct trace_ctx_s trace_ctx_t;
+
+typedef struct
 {
 	registers_t regs;
 	unsigned char deadbeef[4];
@@ -21,8 +25,14 @@ typedef struct trace_s
 	int status;
 	long syscall;
 	void *data; /* free to be used by tracer plugin */
+	trace_ctx_t *ctx;
 
 } trace_t;
+
+struct trace_ctx_s
+{
+	struct trace_map_s *map;
+};
 
 /* prototype for a callback function which should tell the
  * tracer for which process to wait next.
@@ -66,5 +76,8 @@ void release_process(trace_t *t);
 
 void steptrace_process(trace_t *t, int val);
 int get_steptrace_process(trace_t *t);
+
+void detach_process(trace_t *t);
+void detach_all(trace_ctx_t *ctx);
 
 #endif /* TRACE_H */
