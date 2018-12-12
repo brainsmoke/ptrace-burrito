@@ -8,42 +8,42 @@ CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -Os
 STRIP=strip --strip-all
 
 TEST_TARGETS=\
-	test/testcases/getppid\
-	test/testcases/hello_world\
-	test/testcases/pidgallore\
-	test/testcases/sigalrm\
-	test/testcases/sigpipe\
-	test/testcases/sigsegv\
-	test/testcases/sigalrm-sysv\
-	test/testcases/highfd\
-	test/testcases/noaddrrand\
-	test/testcases/rdtsc\
-	test/testcases/fork\
-	test/testcases/exec\
-	test/testcases/abort\
-	test/testcases/sigalrm-uspace\
-	test/testcases/sigalrm-sigsegv\
-	test/testcases/nordtsc\
-	test/testcases/timestamps\
-	test/testcases/sigchld\
-	test/testcases/sigprocmask\
-	test/testcases/killsegv\
-	test/testcases/fstat\
-	test/testcases/rdtrunc
-#	test/testcases/environ\
-#	test/testcases/newfs\
-#	test/testcases/newns\
-#	test/testcases/sysall\
-#	test/testcases/raise\
-#	test/testcases/intint\
+	testcases/getppid\
+	testcases/hello_world\
+	testcases/pidgallore\
+	testcases/sigalrm\
+	testcases/sigpipe\
+	testcases/sigsegv\
+	testcases/sigalrm-sysv\
+	testcases/highfd\
+	testcases/noaddrrand\
+	testcases/rdtsc\
+	testcases/fork\
+	testcases/exec\
+	testcases/abort\
+	testcases/sigalrm-uspace\
+	testcases/sigalrm-sigsegv\
+	testcases/nordtsc\
+	testcases/timestamps\
+	testcases/sigchld\
+	testcases/sigprocmask\
+	testcases/killsegv\
+	testcases/fstat\
+	testcases/rdtrunc
+#	testcases/environ\
+#	testcases/newfs\
+#	testcases/newns\
+#	testcases/sysall\
+#	testcases/raise\
+#	testcases/intint\
 
 TARGETS=$(TEST_TARGETS)\
-	test/bdiff\
-	test/tracer/writeecho\
-	test/tracer/faketsc\
-	test/syscalls/nosignals\
-	test/maps/codecov\
-	test/syscalls/printregs
+	tools/bdiff\
+	examples/tracer/writeecho\
+	examples/tracer/faketsc\
+	examples/syscalls/nosignals\
+	examples/maps/codecov\
+	examples/syscalls/printregs
 
 TRACER_OBJECTS=\
 	tracer/dataset.o\
@@ -64,7 +64,7 @@ SYSCALLS_OBJECTS=\
 MAPS_OBJECTS=\
 	maps/maps.o
 
-OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS)
+OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS)
 
 CLEAN=$(TARGETS) $(OBJECTS)
 
@@ -77,6 +77,7 @@ strip: $(TARGETS)
 
 $(OBJECTS): depend
 
+
 tracer/%.o: tracer/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
@@ -86,36 +87,53 @@ maps/%.o: maps/%.c
 syscalls/%.o: syscalls/%.c
 	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
 
-test/maps/%.o: test/maps/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -c -o $@ $<
 
-test/syscalls/%.o: test/syscalls/%.c
-	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
-test/%.o: test/%.c
+examples/tracer/%.o: examples/tracer/%.c
 	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
 
-test/testcases/%: test/testcases/%.c
+examples/tracer/%: examples/tracer/%.o $(TRACER_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+
+examples/syscalls/%.o: examples/syscalls/%.c
+	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
+
+examples/syscalls/%: examples/syscalls/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+
+examples/maps/%.o: examples/maps/%.c
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -c -o $@ $<
+
+examples/maps/%: examples/maps/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+
+tools/%.o: tools/%.c
+	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
+
+tools/%: tools/%.o $(TRACER_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+
+testcases/%: testcases/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-test/testcases/intint: test/testcases/intint.S
+testcases/%: testcases/%.S
 	$(CC) -nostdlib -o $@ $<
 
-test/syscalls/%: test/syscalls/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS)
-	$(LINK) -o $@ $^ $(LDFLAGS)
-
-test/maps/%: test/maps/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS)
-	$(LINK) -o $@ $^ $(LDFLAGS)
-
-test/%: test/%.o $(TRACER_OBJECTS)
-	$(LINK) -o $@ $^ $(LDFLAGS)
 
 depend:
 	#makedepend -- -Y. -- *.c test/*.c 2>/dev/null
 
 clean:
 	-rm $(CLEAN)
-	makedepend -- -Y. -- 2>/dev/null
+	#makedepend -- -Y. -- 2>/dev/null
 	-rm Makefile.bak
 
 # DO NOT DELETE
