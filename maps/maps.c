@@ -87,7 +87,7 @@ mmap_region_t *get_mmap_region(pid_t pid, uintptr_t address, mmap_region_t *r)
 	return NULL;
 }
 
-process_list_t *find_process_list(pid_t pid)
+static process_list_t *find_process(pid_t pid)
 {
 	process_list_t *l = list;
 	for (l=list; l; l=l->next)
@@ -123,7 +123,7 @@ mmap_region_t *find_mmap_region(process_list_t *l, uintptr_t address)
 
 tag_t *tag(pid_t pid, uintptr_t address)
 {
-	process_list_t *l = find_process_list(pid);
+	process_list_t *l = find_process(pid);
 	if (!l->last || !inside(address, l->last))
 	{
 		l->last = find_mmap_region(l, address);
@@ -144,7 +144,7 @@ tag_t *tag(pid_t pid, uintptr_t address)
 
 void reset_maps(pid_t pid)
 {
-	process_list_t *l = find_process_list(pid);
+	process_list_t *l = find_process(pid);
 	l->regions_retired = try_realloc(l->regions_retired, (l->n_regions + l->n_regions_retired) * sizeof(mmap_region_t));
 	memcpy(&l->regions_retired[l->n_regions_retired], &l->regions[0], l->n_regions*sizeof(mmap_region_t));
 	l->n_regions_retired += l->n_regions;
