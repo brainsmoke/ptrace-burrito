@@ -33,9 +33,9 @@ TEST_TARGETS=\
 	testcases/environ\
 	testcases/newfs\
 	testcases/newns\
-	testcases/raise
-#	testcases/intint\
-#	testcases/sysall
+	testcases/raise\
+	testcases/sysall\
+	testcases/intint
 
 TARGETS=$(TEST_TARGETS)\
 	tools/hexdiff\
@@ -125,7 +125,7 @@ testcases/%: testcases/%.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 testcases/%: testcases/%.S
-	$(CC) -nostdlib -o $@ $<
+	$(CC) -nostdlib -o $@ $< -no-pie
 
 
 depend:

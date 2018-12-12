@@ -12,7 +12,7 @@
 #include <string.h>
 #include <wait.h>
 
-#define beefeaten(...) _beefeaten(__FUNCTION__, __VA_ARGS__, NULL)
+#define beefeaten(...) _beefeaten(__func__, __VA_ARGS__, NULL)
 void _beefeaten(const char *msg, ...)
 {
 	va_list ap;
@@ -31,7 +31,7 @@ void _beefeaten(const char *msg, ...)
 	va_end(ap);
 }
 
-#define setbeef(...) _setbeef(__FUNCTION__, __VA_ARGS__, NULL)
+#define setbeef(...) _setbeef(__func__, __VA_ARGS__, NULL)
 void _setbeef(const char *msg, ...)
 {
 	va_list ap;
@@ -73,16 +73,16 @@ void print_rusage(struct rusage *u)
 }
 
 
-char *w1 = "test_read_write_one\n", *w2 = "test_read_write_two\n";
+char *s1 = "test_read_write_one\n", *s2 = "test_read_write_two\n";
 
 void test_read_write(void)
 {
 								char a[4];
 	int status;
 								char b[4];
-	char r1[strlen(w1)+1];
+	char r1[strlen(s1)+1];
 								char c[4];
-	char r2[strlen(w2)+1];
+	char r2[strlen(s2)+1];
 								char d[4];
 	int pipe1[2];
 								char e[4];
@@ -91,18 +91,18 @@ void test_read_write(void)
 
 	setbeef(a,b,c,d,e,f);
 
-	r1[strlen(w1)]='\0'; r2[strlen(w2)]='\0';
+	r1[strlen(s1)]='\0'; r2[strlen(s2)]='\0';
 
 	pipe(pipe1); pipe(pipe2);
 
 	if (fork())
 	{
-		write(pipe1[1], w1, strlen(w1));
-		read(pipe2[0], r2, strlen(w2));
-		if ( strcmp(r2, w2) != 0 )
+		write(pipe1[1], s1, strlen(s1));
+		read(pipe2[0], r2, strlen(s2));
+		if ( strcmp(r2, s2) != 0 )
 			write(1, "ERROR\n", 6);
 
-		write(1, r2, strlen(w2));
+		write(1, r2, strlen(s2));
 
 		close(pipe1[0]); close(pipe1[1]); close(pipe2[0]); close(pipe2[1]);
 
@@ -114,12 +114,12 @@ void test_read_write(void)
 	}
 	else
 	{
-		read(pipe1[0], r1, strlen(w1));
-		write(pipe2[1], w2, strlen(w2));
-		if ( strcmp(r1, w1) != 0 )
+		read(pipe1[0], r1, strlen(s1));
+		write(pipe2[1], s2, strlen(s2));
+		if ( strcmp(r1, s1) != 0 )
 			write(1, "ERROR\n", 6);
 
-		write(1, r1, strlen(w1));
+		write(1, r1, strlen(s1));
 
 		beefeaten(a,b,c,d,e,f);
 		exit(0);
@@ -184,13 +184,14 @@ void test_wait(void)
 
 	if ( fork() == 0 )
 	{
-
+#ifdef __NR_waitpid
 		if ( fork() == 0 )
 		{
 			exit(0);
 		}
 		syscall(__NR_waitpid, -1, &status, 0);
 		printf("status: %d\n", status);fflush(stdout);
+#endif
 		exit(0);
 	}
 	syscall(__NR_wait4, -1, &status, 0, &usage);
