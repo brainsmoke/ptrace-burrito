@@ -1,9 +1,12 @@
 
+#define _GNU_SOURCE
+
 #include <sys/ptrace.h>
 #include <sys/wait.h>
 
 #include <linux/ptrace.h>
 #include <sys/personality.h>
+#include <sys/syscall.h>
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -11,6 +14,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <signal.h>
+#include <sched.h>
 
 #include "errors.h"
 #include "debug.h"
@@ -90,6 +94,7 @@ void sigusr1(int sig)
 	print_tags(outfile);
 	fflush(outfile);
 }
+
 
 static void usage(char *progname)
 {
@@ -183,7 +188,24 @@ int main(int argc, char **argv)
 			pid = run_traceable(argv[0], argv, 1, 0);
 	}
 	else
+	{
+		pid_t tracer_pid = fork();
+		if ( tracer_pid < 0 )
+			exit(EXIT_FAILURE);
+
+		if ( tracer_pid > 0 )
+		{
+			fprintf(stderr, "[press enter to detach]\n"); fflush(stderr);
+			int ch;
+			while ( ( (ch = getchar()) != EOF) && (ch != '\n') );
+			kill(tracer_pid, SIGTERM);
+			int status;
+			waitpid(tracer_pid, &status, 0);
+			exit(WEXITSTATUS(status));
+		}
+
 		trace_attach(pid);
+	}
 
 	trace(pid, &plug);
 
