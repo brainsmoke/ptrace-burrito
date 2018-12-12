@@ -21,7 +21,9 @@ typedef struct process_list_s process_list_t;
 	process_list_t *next;
 };
 
-process_list_t *list = NULL;
+static process_list_t *list = NULL;
+static pid_t lastpid=0;
+static mmap_region_t *lastregion=NULL;
 
 static FILE *open_maps(pid_t pid)
 {
@@ -123,6 +125,10 @@ mmap_region_t *find_mmap_region(process_list_t *l, uintptr_t address)
 
 tag_t *tag(pid_t pid, uintptr_t address)
 {
+	/* fastpath */
+	if (lastpid && (pid == lastpid) && inside(address, lastregion) )
+		return &lastregion->tags[address-lastregion->base];
+
 	process_list_t *l = find_process(pid);
 	if (!l->last || !inside(address, l->last))
 	{
@@ -137,9 +143,16 @@ tag_t *tag(pid_t pid, uintptr_t address)
 	}
 
 	if (l->last)
+	{
+		lastpid = pid;
+		lastregion = l->last;
 		return &l->last->tags[address-l->last->base];
+	}
 	else
+	{
+		lastpid = 0;
 		return NULL;
+	}
 }
 
 void reset_maps(pid_t pid)
@@ -149,6 +162,7 @@ void reset_maps(pid_t pid)
 	memcpy(&l->regions_retired[l->n_regions_retired], &l->regions[0], l->n_regions*sizeof(mmap_region_t));
 	l->n_regions_retired += l->n_regions;
 	l->n_regions = 0;
+	lastpid = 0;
 }
 
 void print_regions(FILE *f, mmap_region_t *regions, int n_regions)
