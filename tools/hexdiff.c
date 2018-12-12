@@ -9,7 +9,7 @@
 
 #include "debug.h"
 
-void bdiff(int fd1, int fd2, int grane)
+void hexdiff(int fd1, int fd2, int grane)
 {
 	int r1=1, r2=1, chunk=grane*16;
 	char buf1[chunk], buf2[chunk];
@@ -44,7 +44,7 @@ int main(int argc, char **argv)
 		else if ( (fd[i] = open(argv[i+2], O_RDONLY)) == -1 )
 			fatal_error("open: %s", strerror(errno));
 
-	bdiff(fd[0], fd[1], grane);
+	hexdiff(fd[0], fd[1], grane);
 
 	close(fd[0]); close(fd[1]);
 

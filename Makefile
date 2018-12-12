@@ -29,16 +29,16 @@ TEST_TARGETS=\
 	testcases/sigprocmask\
 	testcases/killsegv\
 	testcases/fstat\
-	testcases/rdtrunc
-#	testcases/environ\
-#	testcases/newfs\
-#	testcases/newns\
-#	testcases/sysall\
-#	testcases/raise\
+	testcases/rdtrunc\
+	testcases/environ\
+	testcases/newfs\
+	testcases/newns\
+	testcases/raise
 #	testcases/intint\
+#	testcases/sysall
 
 TARGETS=$(TEST_TARGETS)\
-	tools/bdiff\
+	tools/hexdiff\
 	examples/tracer/writeecho\
 	examples/tracer/faketsc\
 	examples/syscalls/nosignals\

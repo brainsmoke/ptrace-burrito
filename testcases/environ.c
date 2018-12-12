@@ -17,7 +17,7 @@ int execvpe(char *filename, char *argv[], char *envp[])
 
 int main(int argc, char **argv)
 {
-	char *myenv[] = { "TESTSUCCESS=yes", NULL }, **tmp;
+	char *myenv[] = { "TESTSUCCESS=yes", NULL };
 
 	if (getenv("TESTSUCCESS"))
 	{
@@ -28,8 +28,6 @@ int main(int argc, char **argv)
 		setenv("TESTSUCCESS", "no", 1);
 		execvpe(argv[0], argv, myenv);
 	}
-
-	environ = tmp;
 
 	exit(EXIT_SUCCESS);
 }
