@@ -43,7 +43,10 @@
 
 void trace_attach(pid_t pid)
 {
-	if ( ptrace(PTRACE_ATTACH, pid, NULL, NULL) == -1 )
+	if ( ptrace(PTRACE_SEIZE, pid, NULL, NULL) == -1 )
+		fatal_error("ptrace: %s", strerror(errno));
+
+	if ( ptrace(PTRACE_INTERRUPT, pid, NULL, NULL) == -1 )
 		fatal_error("ptrace: %s", strerror(errno));
 }
 
