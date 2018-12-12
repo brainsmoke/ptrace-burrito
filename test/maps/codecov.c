@@ -20,7 +20,7 @@
 #include "process.h"
 #include "maps.h"
 
-//static const char *c = "\033[0;31m", *n = "\033[m";
+static const char *c = "\033[1;31m", *n = "\033[m";
 
 int step;
 FILE *outfile = NULL;
@@ -28,47 +28,23 @@ trace_ctx_t *ctx;
 
 static void print_pre_call(trace_t *t, void *data)
 {
+	fprintf(stderr, "%5d  ", t->pid);
 	print_trace_call(t);
-/*
-	if (step)
-		print_trace_diff(t, (trace_t*)t->data);
-	else
-		print_trace(t);
-	*(trace_t*)t->data = *t;
-	fflush(stdout);
-*/
+	fflush(stderr);
 }
 
 static void print_post_call(trace_t *t, void *data)
 {
+	fprintf(stderr, "%5d  ", t->pid);
 	print_trace_return(t);
-/*
-	printf("(from %s)\n", syscall_name(get_syscall(t)));
-	print_trace_diff(t, (trace_t*)t->data);
-	if (step)
-		*(trace_t*)t->data = *t;
-	fflush(stdout);
-*/
+	fflush(stderr);
 }
 
 static void print_signal(trace_t *t, void *data)
 {
-/*
-	siginfo_t info;
-	memset(&info, 0, sizeof(info));
-
-	printf("%sSIGNAL%s %s\n",c,n, signal_name(t->signal));
-	get_siginfo(t->pid, &info);
-	printhex(&info, sizeof(info));
-	if (step)
-	{
-		print_trace_diff(t, (trace_t*)t->data);
-		*(trace_t*)t->data = *t;
-	}
-	else
-		print_trace(t);
-	fflush(stdout);
-*/
+	fprintf(stderr, "%5d  ", t->pid);
+	fprintf(stderr, "%sSIGNAL%s %s\n",c,n, signal_name(t->signal));
+	fflush(stderr);
 }
 
 static void print_start(trace_t *t, trace_t *parent, void *data)
@@ -79,27 +55,16 @@ static void print_start(trace_t *t, trace_t *parent, void *data)
 
 	if (!ctx)
 		ctx=t->ctx;
-/*
-	t->data = try_malloc(sizeof(trace_t));
-	printf("%sSTART%s\n",c,n);
-	print_trace(t);
-	if (step)
-		*(trace_t*)t->data = *t;
-	fflush(stdout);
-*/
+	fprintf(stderr, "%5d  %sSTART%s\n",t->pid,c,n);
+	fflush(stderr);
 }
 
 static void print_stop(trace_t *t, void *data)
 {
-/*
-	free(t->data);
-	printf("%sSTOP%s\n",c,n);
-	if (step)
-		print_trace_diff(t, (trace_t*)t->data);
-	else
-		print_trace(t);
-	fflush(stdout);
-*/
+	fprintf(stderr, "%5d  ", t->pid);
+	fprintf(stderr, "%sSTOP%s pid = %u, signal = %d, exit code = %d\n",
+	                c, n, t->pid, t->signal, t->exitcode);
+	fflush(stderr);
 }
 
 static void print_step(trace_t *t, void *data)
@@ -110,21 +75,14 @@ static void print_step(trace_t *t, void *data)
 static void print_exec(trace_t *t, void *data)
 {
 	reset_maps(t->pid);
-/*
-	printf("%sEXEC%s\n",c,n);
-	print_trace_diff(t, (trace_t*)t->data);
-	*(trace_t*)t->data = *t;
-	fflush(stdout);
-*/
+	fprintf(stderr, "%5d  %sEXEC%s\n",t->pid,c,n);
+	fflush(stderr);
 }
 
 void sigterm(int sig)
 {
-//	print_tags(outfile);
-//	fflush(outfile);
 	if (ctx)
 		detach_all(ctx);
-//	exit(EXIT_SUCCESS);
 }
 
 void sigusr1(int sig)
@@ -135,13 +93,13 @@ void sigusr1(int sig)
 
 static void usage(char *progname)
 {
-	fprintf(stderr, "Usage: %s [-out <outfile>|-fd <out-filedes>] [-pid <pid>|command args...]\n", progname);
+	fprintf(stderr, "Usage: %s [-out <outfile>|-fd <out-filedes>] [-verbose] [-pid <pid>|command args...]\n", progname);
 	exit(EXIT_FAILURE);
 }
 
 int main(int argc, char **argv)
 {
-	debug_init(stdout);
+	debug_init(stderr);
 	char *progname = argv[0];
 	pid_t pid = -1;
 
