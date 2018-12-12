@@ -2,6 +2,7 @@ CC=gcc
 LINK=gcc
 
 LDFLAGS=
+#LDFLAGS=-static
 CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -I. -g
 #CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -Os
 STRIP=strip --strip-all
@@ -41,7 +42,7 @@ TARGETS=$(TEST_TARGETS)\
 	test/tracer/writeecho\
 	test/tracer/faketsc\
 	test/syscalls/nosignals\
-	test/maps/mapstest\
+	test/maps/codecov\
 	test/syscalls/printregs
 
 TRACER_OBJECTS=\
