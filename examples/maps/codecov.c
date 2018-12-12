@@ -29,26 +29,36 @@ static const char *c = "\033[1;31m", *n = "\033[m";
 int step;
 FILE *outfile = NULL;
 trace_ctx_t *ctx;
+int verbose;
 
 static void print_pre_call(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  ", t->pid);
-	print_trace_call(t);
-	fflush(stderr);
+	if (verbose)
+	{
+		fprintf(stderr, "%5d  ", t->pid);
+		print_trace_call(t);
+		fflush(stderr);
+	}
 }
 
 static void print_post_call(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  ", t->pid);
-	print_trace_return(t);
-	fflush(stderr);
+	if (verbose)
+	{
+		fprintf(stderr, "%5d  ", t->pid);
+		print_trace_return(t);
+		fflush(stderr);
+	}
 }
 
 static void print_signal(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  ", t->pid);
-	fprintf(stderr, "%sSIGNAL%s %s\n",c,n, signal_name(t->signal));
-	fflush(stderr);
+	if (verbose)
+	{
+		fprintf(stderr, "%5d  ", t->pid);
+		fprintf(stderr, "%sSIGNAL%s %s\n",c,n, signal_name(t->signal));
+		fflush(stderr);
+	}
 }
 
 static void print_start(trace_t *t, trace_t *parent, void *data)
@@ -59,16 +69,23 @@ static void print_start(trace_t *t, trace_t *parent, void *data)
 
 	if (!ctx)
 		ctx=t->ctx;
-	fprintf(stderr, "%5d  %sSTART%s\n",t->pid,c,n);
-	fflush(stderr);
+
+	if (verbose)
+	{
+		fprintf(stderr, "%5d  %sSTART%s\n",t->pid,c,n);
+		fflush(stderr);
+	}
 }
 
 static void print_stop(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  ", t->pid);
-	fprintf(stderr, "%sSTOP%s pid = %u, signal = %d, exit code = %d\n",
-	                c, n, t->pid, t->signal, t->exitcode);
-	fflush(stderr);
+	if (verbose)
+	{
+		fprintf(stderr, "%5d  ", t->pid);
+		fprintf(stderr, "%sSTOP%s pid = %u, signal = %d, exit code = %d\n",
+		                c, n, t->pid, t->signal, t->exitcode);
+		fflush(stderr);
+	}
 }
 
 static void print_step(trace_t *t, void *data)
@@ -79,8 +96,11 @@ static void print_step(trace_t *t, void *data)
 static void print_exec(trace_t *t, void *data)
 {
 	reset_maps(t->pid);
-	fprintf(stderr, "%5d  %sEXEC%s\n",t->pid,c,n);
-	fflush(stderr);
+	if (verbose)
+	{
+		fprintf(stderr, "%5d  %sEXEC%s\n",t->pid,c,n);
+		fflush(stderr);
+	}
 }
 
 void sigterm(int sig)
@@ -109,6 +129,7 @@ int main(int argc, char **argv)
 	pid_t pid = -1;
 
 	step = 1;
+	verbose = 0;
 	for (argv++; *argv && **argv == '-' ; argv++)
 	{
 		if ( strcmp(*argv, "--") == 0 )
@@ -157,6 +178,8 @@ int main(int argc, char **argv)
 			if (outfile == NULL)
 				usage(progname);
 		}
+		else if ( strcmp(*argv, "-verbose") == 0 )
+			verbose = 1;
 		else
 			usage(progname);
 	}
