@@ -26,6 +26,7 @@ typedef struct
 	long syscall;
 	void *data; /* free to be used by tracer plugin */
 	trace_ctx_t *ctx;
+	debug_registers_t debug_regs;
 
 } trace_t;
 
@@ -66,7 +67,7 @@ void trace(pid_t pid, tracer_plugin_t *plug);
 /* tells the tracer not to continue execution of this process until
  * release_process() is called, it is the caller's responsibility
  * to make sure there are processes left to wait for (and that these
- * don't block indefinately.)
+ * don't block indefinitely.)
  */
 void hold_process(trace_t *t);
 

@@ -2,12 +2,14 @@
 #define UTIL_H
 
 #include <sys/types.h>
+#include <sys/mman.h>
+
 #include <stdint.h>
 
 #include "trace.h"
 #include "signal_queue.h"
 
-/* Low-level functionality, some of which needs
+/* Low-level functionality, some of which need
  * platform specific implementations
  */
 
@@ -17,6 +19,33 @@ unsigned long get_eventmsg(trace_t *t);
 
 void get_registers(trace_t *t);
 void set_registers(trace_t *t);
+
+void init_debug_regs(trace_t *t);
+
+/* inlined, since it's in the hotpath during steptrace */
+inline int watchpoints_enabled(trace_t *t)
+{
+#if defined(__i386__) || defined(__x86_64__)
+	return (t->debug_regs.dr[7] & 0xff);
+#else
+	return 0;
+#endif
+}
+
+/* returns -1 if not trapped, returns watchpoint number if trapped */
+int watchpoint_trapped(trace_t *t);
+
+/* returns breakpoint number, or -1 on error,
+ *
+ * use prot=PROT_READ|PROT_WRITE to break on reads & writes, PROT_WRITE for writes,
+ * PROT_EXEC for breakpoints
+ *
+ */
+int set_breakpoint(trace_t *t, uintptr_t address);
+int set_watchpoint(trace_t *t, uintptr_t address, int prot, int size);
+int get_watchpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *size);
+int unset_watchpoint(trace_t *t, int index);
+
 
 void get_siginfo(pid_t pid, siginfo_t *info);
 void set_siginfo(pid_t pid, siginfo_t *info);

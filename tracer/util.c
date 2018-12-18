@@ -64,6 +64,201 @@ void set_siginfo(pid_t pid, siginfo_t *info)
 
 #if defined(__i386__) || defined(__x86_64__)
 
+static long read_debugreg(trace_t *t, int index)
+{
+	return ptrace(PTRACE_PEEKUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), 0);
+}
+
+static long write_debugreg(trace_t *t, int index, long value)
+{
+	return ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), value);
+}
+
+enum
+{
+    X86_BREAKPOINT = 0,
+    X86_WATCHPOINT_WRITE = 1,
+    X86_WATCHPOINT_READWRITE = 3,
+};
+
+#define DR6_TRAPPED(dr6, i) ( (dr6) & (1<<(i)) )
+
+#define DR7_ENABLE_FIELD_SHIFT(i) ((i)*2)
+#define DR7_TYPE_FIELD_SHIFT(i) ((i)*4+16)
+#define DR7_LEN_FIELD_SHIFT(i) ((i)*4+18)
+
+#define DR7_BREAKPOINT_ENABLED(dr7, i) ((dr7) & (3<<DR7_ENABLE_FIELD_SHIFT(i)))
+#define DR7_TYPE_FIELD(dr7, i) (((dr7)>>DR7_TYPE_FIELD_SHIFT(i))&3)
+#define DR7_LEN_FIELD(dr7, i) (((dr7)>>DR7_LEN_FIELD_SHIFT(i))&3)
+
+#define DR7_MASK(i) (~( (3<<DR7_ENABLE_FIELD_SHIFT(i)) | (0xf<<((i)*4+16)) ))
+
+void init_debug_regs(trace_t *t)
+{
+	long dr7 = read_debugreg(t, 7);
+	t->debug_regs.dr[7] = dr7;
+
+	int i;
+	for (i=0; i<MAX_WATCHPOINTS; i++)
+		if ( DR7_BREAKPOINT_ENABLED(dr7, i) )
+			t->debug_regs.dr[i] = read_debugreg(t, i);
+
+	t->debug_regs.dr[6] = 0;
+	write_debugreg(t, 6, 0);
+}
+
+int watchpoint_trapped(trace_t *t)
+{
+	long dr6 = read_debugreg(t, 6);
+	t->debug_regs.dr[6] = dr6;
+
+	if (dr6)
+	{
+		write_debugreg(t, 6, 0);
+		int i;
+		for (i=0; i<MAX_WATCHPOINTS; i++)
+			if (DR6_TRAPPED(dr6, i))
+				return i;
+	}
+
+	return -1;
+}
+
+static int valid_watchpoint(trace_t *t, int index)
+{
+	if ( (index < 0) || (index >= MAX_WATCHPOINTS) )
+		return 0;
+
+	if ( !DR7_BREAKPOINT_ENABLED(t->debug_regs.dr[7], index) )
+		return 0;
+
+	return 1;
+}
+
+static int get_free_debugreg(trace_t *t)
+{
+	long dr7 = t->debug_regs.dr[7];
+
+	int i;
+	for (i=0; i<MAX_WATCHPOINTS; i++)
+		if ( ! DR7_BREAKPOINT_ENABLED(dr7, i) )
+			return i;
+
+	return -1;
+}
+
+static int get_breakpoint_type(int prot)
+{
+	if ( ( prot & PROT_EXEC ) && ( prot != PROT_EXEC) )
+		return -1;
+	else if ( prot == PROT_EXEC )
+		return X86_BREAKPOINT;
+	else if ( (prot &~ PROT_WRITE) == PROT_READ )
+		return X86_WATCHPOINT_READWRITE;
+	else if ( prot == PROT_WRITE)
+		return X86_WATCHPOINT_WRITE;
+	else
+		return -1;
+}
+
+static int get_breakpoint_prot(int type)
+{
+	switch (type)
+	{
+		case X86_BREAKPOINT:
+			return PROT_EXEC;
+		case X86_WATCHPOINT_WRITE:
+			return PROT_WRITE;
+		case X86_WATCHPOINT_READWRITE:
+			return PROT_READ|PROT_WRITE;
+		default:
+			return -1;
+	}
+}
+
+static int get_breakpoint_len_field(int size)
+{
+	switch (size)
+	{
+		case  1: return  0;
+		case  2: return  1;
+		case  4: return  3;
+		case  8: return  2;
+		default: return -1;
+	}
+}
+
+static int get_breakpoint_size(int len_field)
+{
+	switch (len_field)
+	{
+		case  0: return  1;
+		case  1: return  2;
+		case  2: return  8;
+		case  3: return  4;
+		default: return -1;
+	}
+}
+
+int set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
+{
+	int index = get_free_debugreg(t);
+	if ( index < 0 )
+		return index;
+
+	int type = get_breakpoint_type(prot);
+	if ( type < 0 )
+		return type;
+
+	int len_field = get_breakpoint_len_field(size);
+	if ( len_field < 0 )
+		return len_field;
+
+	t->debug_regs.dr[index] = address;
+	t->debug_regs.dr[7] &= DR7_MASK(index);
+	t->debug_regs.dr[7] |= 1 << DR7_ENABLE_FIELD_SHIFT(index);
+	t->debug_regs.dr[7] |= type << DR7_TYPE_FIELD_SHIFT(index);
+	t->debug_regs.dr[7] |= len_field << DR7_LEN_FIELD_SHIFT(index);
+	write_debugreg(t, index, t->debug_regs.dr[index]);
+	write_debugreg(t, 7, t->debug_regs.dr[7]);
+
+	return index;
+}
+
+int set_breakpoint(trace_t *t, uintptr_t address)
+{
+	return set_watchpoint(t, address, PROT_EXEC, 1);
+}
+
+int get_watchpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *size)
+{
+	*address = 0;
+	*prot = 0;
+	*size = 0;
+
+	if ( !valid_watchpoint(t, index) )
+		return -1;
+
+	*address = t->debug_regs.dr[index];
+	*prot = get_breakpoint_prot(DR7_TYPE_FIELD(t->debug_regs.dr[7], index));
+	*size = get_breakpoint_size(DR7_LEN_FIELD(t->debug_regs.dr[7], index));
+
+	return index;
+}
+
+int unset_watchpoint(trace_t *t, int index)
+{
+	if ( !valid_watchpoint(t, index) )
+		return -1;
+
+	t->debug_regs.dr[7] &= DR7_MASK(index);
+	write_debugreg(t, 7, t->debug_regs.dr[7]);
+
+	t->debug_regs.dr[index] = 0;
+	write_debugreg(t, index, t->debug_regs.dr[index]);
+	return 0;
+}
+
 uint64_t get_timestamp(void)
 {
 	uint32_t lo, hi;

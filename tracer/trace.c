@@ -43,6 +43,8 @@ static trace_t *new_trace(pid_t pid, int status, trace_ctx_t *ctx)
 		.ctx = ctx,
 	};
 
+	init_debug_regs(t);
+
 	if ( WIFEXITED(t->status) || WIFSIGNALED(t->status) )
 		abort();
 

@@ -2,13 +2,14 @@
 #define ARCH_H
 
 #include <inttypes.h>
+#include <stddef.h>
 #include <sys/user.h>
 #include <sys/procfs.h>
 
 /*
  * Architecture specific definitions:
  *
- * Currently, only i386 is supported
+ * Currently, only i386/x86_64 is supported
  */
 
 /*
@@ -23,6 +24,9 @@
 #ifdef __i386__
 
 typedef struct user_regs_struct registers_t;
+typedef struct { int dr[8]; } debug_registers_t;
+#define DEBUGREG_OFFSET (offsetof(struct user, u_debugreg))
+#define MAX_WATCHPOINTS (4)
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_DATA        ELFDATA2LSB
@@ -33,6 +37,9 @@ typedef struct user_regs_struct registers_t;
 #ifdef __x86_64__
 
 typedef struct user_regs_struct registers_t;
+typedef struct { long long int dr[8]; } debug_registers_t;
+#define DEBUGREG_OFFSET (offsetof(struct user, u_debugreg))
+#define MAX_WATCHPOINTS (4)
 
 #define ELF_CLASS       ELFCLASS64
 #define ELF_DATA        ELFDATA2LSB
