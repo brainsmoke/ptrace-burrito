@@ -270,7 +270,10 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		else if (event == PTRACE_EVENT_EXIT)
 			t->state = STOP;
 		else if (event == PTRACE_EVENT_EXEC)
+		{
 			t->state = EXEC;
+			init_debug_regs(t);
+		}
 		else if (event)
 		{
 			parent = t;
