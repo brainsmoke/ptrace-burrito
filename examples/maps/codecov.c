@@ -90,7 +90,7 @@ static void print_stop(trace_t *t, void *data)
 
 static void print_step(trace_t *t, void *data)
 {
-	*tag(t->pid, t->regs.rip) += 1;
+	*tag(t->pid, get_pc(t)) += 1;
 }
 
 static void print_exec(trace_t *t, void *data)

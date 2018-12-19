@@ -295,6 +295,26 @@ uint64_t get_timestamp(void)
 #define RDTSC_OPCODE_SIZE 2
 #define RDTSC_OPCODE "\x0f\x31"
 
+uintptr_t get_pc(trace_t *t)
+{
+	return t->regs.eip;
+}
+
+void set_pc(trace_t *t, uintptr_t val)
+{
+	t->regs.eip = val;
+}
+
+uintptr_t get_sp(trace_t *t)
+{
+	return t->regs.esp;
+}
+
+void set_sp(trace_t *t, uintptr_t val)
+{
+	t->regs.esp = val;
+}
+
 unsigned long get_syscall(trace_t *t)
 {
 	return t->regs.orig_eax;
@@ -400,6 +420,26 @@ void emulate_tsc(trace_t *t, uint64_t timestamp)
 #define TRAP_FLAG 0x00000100
 #define RDTSC_OPCODE_SIZE 2
 #define RDTSC_OPCODE "\x0f\x31"
+
+uintptr_t get_pc(trace_t *t)
+{
+	return t->regs.rip;
+}
+
+void set_pc(trace_t *t, uintptr_t val)
+{
+	t->regs.rip = val;
+}
+
+uintptr_t get_sp(trace_t *t)
+{
+	return t->regs.rsp;
+}
+
+void set_sp(trace_t *t, uintptr_t val)
+{
+	t->regs.rsp = val;
+}
 
 unsigned long get_syscall(trace_t *t)
 {

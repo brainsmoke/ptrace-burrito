@@ -58,6 +58,12 @@ void set_siginfo(pid_t pid, siginfo_t *info);
  * the caller should call set_registers() to make it definite
  */
 
+uintptr_t get_pc(trace_t *t);
+void set_pc(trace_t *t, uintptr_t val);
+
+uintptr_t get_sp(trace_t *t);
+void set_sp(trace_t *t, uintptr_t val);
+
 unsigned long get_syscall(trace_t *t);
 void set_syscall(trace_t *t, unsigned long val);
 
