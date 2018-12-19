@@ -22,9 +22,11 @@ void set_registers(trace_t *t);
 
 void init_debug_regs(trace_t *t);
 
-int watchpoints_enabled(trace_t *t);
+void clear_breakpoints(trace_t *t);
 
-int watchpoint_fetch_status(trace_t *t);
+int breakpoints_enabled(trace_t *t);
+
+int breakpoint_fetch_status(trace_t *t);
 
 /* returns -1 if not trapped, returns watchpoint number if trapped */
 int current_breakpoint(trace_t *t);

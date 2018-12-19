@@ -74,7 +74,12 @@ static long write_debugreg(trace_t *t, int index, long value)
 	return ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), value);
 }
 
-int watchpoints_enabled(trace_t *t)
+void clear_breakpoints(trace_t *t)
+{
+	ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[7]), 0);
+}
+
+int breakpoints_enabled(trace_t *t)
 {
 	return (t->debug_regs.dr[7] & 0xff);
 }
@@ -111,7 +116,7 @@ void init_debug_regs(trace_t *t)
 	write_debugreg(t, 6, 0);
 }
 
-int watchpoint_fetch_status(trace_t *t)
+int breakpoint_fetch_status(trace_t *t)
 {
 	long dr6 = read_debugreg(t, 6);
 	t->debug_regs.dr[6] = dr6;

@@ -107,6 +107,10 @@ static void detach_cleanup(trace_t *t)
 {
 	if (t->flags & STEPTRACE)
 		steptrace_process(t, 0);
+
+	if (breakpoints_enabled(t))
+		clear_breakpoints(t);
+
 	if (ptrace(PTRACE_DETACH, t->pid, 0, t->signal) != 0)
 		fatal_error("ptrace failed: %s", strerror(errno));
 	del_trace(t->ctx->map, t->pid);
@@ -262,7 +266,7 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 
 		if (is_trap)
 		{
-			if ( watchpoints_enabled(t) && watchpoint_fetch_status(t) )
+			if ( breakpoints_enabled(t) && breakpoint_fetch_status(t) )
 				t->state = BREAKPOINT;
 			else
 				t->state = STEP;
