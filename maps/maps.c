@@ -92,12 +92,16 @@ mmap_region_t *get_mmap_region(pid_t pid, uintptr_t address, mmap_region_t *r)
 uintptr_t find_code_address(pid_t pid, const char *filename, uintptr_t offset)
 {
 	FILE *f = open_maps(pid);
+	char *full_path = realpath(filename, NULL);
+	if (full_path == NULL)
+		fatal_error("%s: realpath() failed", __func__);
+
 	mmap_region_t r = (mmap_region_t) { .name = try_malloc(4098) };
 	r.name[0] = '\0';
 	uintptr_t address = 0;
 
 	while (parse_region(f, &r))
-		if ( strcmp(r.name, filename) == 0 )
+		if ( strcmp(r.name, full_path) == 0 )
 			if ( (offset >= r.file_offset) && (offset < r.file_offset+r.size) )
 			{
 				address = r.base + offset - r.file_offset;
@@ -105,6 +109,7 @@ uintptr_t find_code_address(pid_t pid, const char *filename, uintptr_t offset)
 			}
 
 	free(r.name);
+	free(full_path);
 	r.name = NULL;
 	fclose(f);
 	return address;
@@ -178,12 +183,15 @@ tag_t *tag(pid_t pid, uintptr_t address)
 
 void reset_maps(pid_t pid)
 {
+	lastpid = 0;
 	process_list_t *l = find_process(pid);
+	if (l->n_regions == 0)
+		return;
+
 	l->regions_retired = try_realloc(l->regions_retired, (l->n_regions + l->n_regions_retired) * sizeof(mmap_region_t));
 	memcpy(&l->regions_retired[l->n_regions_retired], &l->regions[0], l->n_regions*sizeof(mmap_region_t));
 	l->n_regions_retired += l->n_regions;
 	l->n_regions = 0;
-	lastpid = 0;
 }
 
 void print_regions(FILE *f, mmap_region_t *regions, int n_regions)
