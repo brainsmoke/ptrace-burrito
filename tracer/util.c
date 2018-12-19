@@ -74,6 +74,11 @@ static long write_debugreg(trace_t *t, int index, long value)
 	return ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), value);
 }
 
+int watchpoints_enabled(trace_t *t)
+{
+	return (t->debug_regs.dr[7] & 0xff);
+}
+
 enum
 {
     X86_BREAKPOINT = 0,
@@ -100,8 +105,7 @@ void init_debug_regs(trace_t *t)
 
 	int i;
 	for (i=0; i<MAX_WATCHPOINTS; i++)
-		if ( DR7_BREAKPOINT_ENABLED(dr7, i) )
-			t->debug_regs.dr[i] = read_debugreg(t, i);
+		t->debug_regs.dr[i] = read_debugreg(t, i);
 
 	t->debug_regs.dr[6] = 0;
 	write_debugreg(t, 6, 0);

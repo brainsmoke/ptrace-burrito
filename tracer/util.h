@@ -22,16 +22,7 @@ void set_registers(trace_t *t);
 
 void init_debug_regs(trace_t *t);
 
-/* inlined, since it's in the hotpath during steptrace */
-inline int watchpoints_enabled(trace_t *t)
-{
-#if defined(__i386__) || defined(__x86_64__)
-	return (t->debug_regs.dr[7] & 0xff);
-#else
-	return 0;
-#endif
-}
-
+int watchpoints_enabled(trace_t *t);
 
 int watchpoint_fetch_status(trace_t *t);
 
@@ -42,6 +33,8 @@ int watchpoint_status(trace_t *t);
  *
  * use prot=PROT_READ|PROT_WRITE to break on reads & writes, PROT_WRITE for writes,
  * PROT_EXEC for breakpoints
+ *
+ * breakpoints are cleared on exec
  *
  */
 int set_breakpoint(trace_t *t, uintptr_t address);
