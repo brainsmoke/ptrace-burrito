@@ -27,7 +27,7 @@ int watchpoints_enabled(trace_t *t);
 int watchpoint_fetch_status(trace_t *t);
 
 /* returns -1 if not trapped, returns watchpoint number if trapped */
-int watchpoint_status(trace_t *t);
+int current_breakpoint(trace_t *t);
 
 /* returns breakpoint number, or -1 on error,
  *

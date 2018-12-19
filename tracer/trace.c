@@ -171,7 +171,7 @@ static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
 			break;
 		case BREAKPOINT:
 			if ( plug->breakpoint )
-				plug->breakpoint(t, watchpoint_status(t), plug->data);
+				plug->breakpoint(t, plug->data);
 			break;
 		case SIGNAL:
 			if ( plug->signal )

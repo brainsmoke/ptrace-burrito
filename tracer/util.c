@@ -120,7 +120,7 @@ int watchpoint_fetch_status(trace_t *t)
 	return (dr6 & 0xf) && !(dr6 & 0x4000);
 }
 
-int watchpoint_status(trace_t *t)
+int current_breakpoint(trace_t *t)
 {
 	long dr6 = t->debug_regs.dr[6];
 	int i;

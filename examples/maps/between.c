@@ -105,9 +105,9 @@ static void print_step(trace_t *t, void *data)
 	*tag(t->pid, t->regs.rip) += 1;
 }
 
-static void print_breakpoint(trace_t *t, int index, void *data)
+static void print_breakpoint(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  %sBREAKPOINT%s %d\n",t->pid,c,n, index);
+	fprintf(stderr, "%5d  %sBREAKPOINT%s %d\n",t->pid,c,n, current_breakpoint(t));
 	if (index == 0)
 		steptrace_process(t, 1);
 	else

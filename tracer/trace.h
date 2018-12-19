@@ -49,16 +49,14 @@ pid_t any_pid(void *);
 typedef void (*traphandler_t)(trace_t *, void *);
 typedef void (*starthandler_t)(trace_t *, trace_t *, void *);
 typedef void (*datahandler_t)(void *);
-typedef void (*breakpointhandler_t)(trace_t *, int, void *);
 
 /* all callbacks */
 typedef struct tracer_plugin_s
 {
 	pidselector_t pid_selector;
 	starthandler_t start;
-	traphandler_t stop, pre_call, post_call, signal, exec, step;
+	traphandler_t stop, pre_call, post_call, signal, exec, step, breakpoint;
 	datahandler_t init, final;
-	breakpointhandler_t breakpoint;
 	void *data; /* passed on to callback functions as argument */
 
 } tracer_plugin_t;

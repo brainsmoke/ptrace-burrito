@@ -97,12 +97,12 @@ static void print_step(trace_t *t, void *data)
 	if (plug->step) plug->step(t, plug->data);
 }
 
-static void print_breakpoint(trace_t *t, int index, void *data)
+static void print_breakpoint(trace_t *t, void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->breakpoint) plug->breakpoint(t, index, plug->data);
+	if (plug->breakpoint) plug->breakpoint(t, plug->data);
 	fprintf(stderr, "%5d  ", t->pid);
-	fprintf(stderr, "%sBREAKPOINT%s %s\n", hi, n, syscall_name(t->syscall));
+	fprintf(stderr, "%sBREAKPOINT%s %d\n", hi, n, current_breakpoint(t));
 	fflush(stderr);
 }
 
