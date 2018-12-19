@@ -109,7 +109,7 @@ void init_debug_regs(trace_t *t)
 	t->debug_regs.dr[7] = dr7;
 
 	int i;
-	for (i=0; i<MAX_WATCHPOINTS; i++)
+	for (i=0; i<MAX_BREAKPOINTS; i++)
 		t->debug_regs.dr[i] = read_debugreg(t, i);
 
 	t->debug_regs.dr[6] = 0;
@@ -131,7 +131,7 @@ int current_breakpoint(trace_t *t)
 	int i;
 
 	if (dr6)
-		for (i=0; i<MAX_WATCHPOINTS; i++)
+		for (i=0; i<MAX_BREAKPOINTS; i++)
 			if (DR6_TRAPPED(dr6, i))
 				return i;
 
@@ -140,7 +140,7 @@ int current_breakpoint(trace_t *t)
 
 static int valid_watchpoint(trace_t *t, int index)
 {
-	if ( (index < 0) || (index >= MAX_WATCHPOINTS) )
+	if ( (index < 0) || (index >= MAX_BREAKPOINTS) )
 		return 0;
 
 	if ( !DR7_BREAKPOINT_ENABLED(t->debug_regs.dr[7], index) )
@@ -154,7 +154,7 @@ static int get_free_debugreg(trace_t *t)
 	long dr7 = t->debug_regs.dr[7];
 
 	int i;
-	for (i=0; i<MAX_WATCHPOINTS; i++)
+	for (i=0; i<MAX_BREAKPOINTS; i++)
 		if ( ! DR7_BREAKPOINT_ENABLED(dr7, i) )
 			return i;
 
