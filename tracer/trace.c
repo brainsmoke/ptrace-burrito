@@ -169,6 +169,10 @@ static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
 			if ( plug->step )
 				plug->step(t, plug->data);
 			break;
+		case BREAKPOINT:
+			if ( plug->breakpoint )
+				plug->breakpoint(t, watchpoint_status(t), plug->data);
+			break;
 		case SIGNAL:
 			if ( plug->signal )
 				plug->signal(t, plug->data);
@@ -187,7 +191,7 @@ static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
 
 void trace(pid_t pid, tracer_plugin_t *plug)
 {
-	int status, event, is_step;
+	int status, event, is_trap;
 	trace_ctx_t ctx = { .map = create_trace_map() };
 
 	waitpid(pid, &status, __WALL);
@@ -251,13 +255,18 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		t->status = status;
 		t->signal = (status>>8) & 0xff;
 		event = (status>>16) & 0xff;
-		is_step = !event && t->signal == SIGTRAP;
+		is_trap = !event && t->signal == SIGTRAP;
 
 		if ( ( t->signal == SIGTRAP ) || ( t->signal == CALL_SIGTRAP ) )
 			t->signal = 0;
 
-		if (is_step)
-			t->state = STEP;
+		if (is_trap)
+		{
+			if ( watchpoints_enabled(t) && watchpoint_fetch_status(t) )
+				t->state = BREAKPOINT;
+			else
+				t->state = STEP;
+		}
 		else if (event == PTRACE_EVENT_EXIT)
 			t->state = STOP;
 		else if (event == PTRACE_EVENT_EXEC)

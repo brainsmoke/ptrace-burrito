@@ -43,6 +43,7 @@ TARGETS=$(TEST_TARGETS)\
 	examples/tracer/faketsc\
 	examples/syscalls/nosignals\
 	examples/maps/codecov\
+	examples/maps/between\
 	examples/syscalls/printregs
 
 TRACER_OBJECTS=\

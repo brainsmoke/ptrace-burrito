@@ -28,4 +28,6 @@ static inline int inside(uintptr_t address, mmap_region_t *r)
 
 void print_tags(FILE *f);
 
+uintptr_t find_code_address(pid_t pid, const char *filename, uintptr_t offset);
+
 #endif /* MAPS_H */

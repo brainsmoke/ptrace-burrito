@@ -9,7 +9,7 @@
 #define CALL_SIGTRAP (0x85)
 
 /* possible states */
-enum { START, STOP, PRE_CALL, POST_CALL, SIGNAL, EXEC, STEP };
+enum { START, STOP, PRE_CALL, POST_CALL, SIGNAL, EXEC, STEP, BREAKPOINT };
 
 /* The per-process datastructure which maintains state during execution */
 
@@ -49,6 +49,7 @@ pid_t any_pid(void *);
 typedef void (*traphandler_t)(trace_t *, void *);
 typedef void (*starthandler_t)(trace_t *, trace_t *, void *);
 typedef void (*datahandler_t)(void *);
+typedef void (*breakpointhandler_t)(trace_t *, int, void *);
 
 /* all callbacks */
 typedef struct tracer_plugin_s
@@ -57,6 +58,7 @@ typedef struct tracer_plugin_s
 	starthandler_t start;
 	traphandler_t stop, pre_call, post_call, signal, exec, step;
 	datahandler_t init, final;
+	breakpointhandler_t breakpoint;
 	void *data; /* passed on to callback functions as argument */
 
 } tracer_plugin_t;

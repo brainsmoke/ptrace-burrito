@@ -107,19 +107,24 @@ void init_debug_regs(trace_t *t)
 	write_debugreg(t, 6, 0);
 }
 
-int watchpoint_trapped(trace_t *t)
+int watchpoint_fetch_status(trace_t *t)
 {
 	long dr6 = read_debugreg(t, 6);
 	t->debug_regs.dr[6] = dr6;
+	if (dr6)
+		write_debugreg(t, 6, 0);
+	return (dr6 & 0xf) && !(dr6 & 0x4000);
+}
+
+int watchpoint_status(trace_t *t)
+{
+	long dr6 = t->debug_regs.dr[6];
+	int i;
 
 	if (dr6)
-	{
-		write_debugreg(t, 6, 0);
-		int i;
 		for (i=0; i<MAX_WATCHPOINTS; i++)
 			if (DR6_TRAPPED(dr6, i))
 				return i;
-	}
 
 	return -1;
 }

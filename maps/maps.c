@@ -89,6 +89,27 @@ mmap_region_t *get_mmap_region(pid_t pid, uintptr_t address, mmap_region_t *r)
 	return NULL;
 }
 
+uintptr_t find_code_address(pid_t pid, const char *filename, uintptr_t offset)
+{
+	FILE *f = open_maps(pid);
+	mmap_region_t r = (mmap_region_t) { .name = try_malloc(4098) };
+	r.name[0] = '\0';
+	uintptr_t address = 0;
+
+	while (parse_region(f, &r))
+		if ( strcmp(r.name, filename) == 0 )
+			if ( (offset >= r.file_offset) && (offset < r.file_offset+r.size) )
+			{
+				address = r.base + offset - r.file_offset;
+				break;
+			}
+
+	free(r.name);
+	r.name = NULL;
+	fclose(f);
+	return address;
+}
+
 static process_list_t *find_process(pid_t pid)
 {
 	process_list_t *l = list;
