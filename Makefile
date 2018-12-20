@@ -44,6 +44,7 @@ TARGETS=$(TEST_TARGETS)\
 	examples/syscalls/nosignals\
 	examples/maps/codecov\
 	examples/breakpoints/between\
+	examples/breakpoints/trace_func\
 	examples/syscalls/printregs
 
 TRACER_OBJECTS=\
