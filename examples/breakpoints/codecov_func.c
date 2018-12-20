@@ -18,6 +18,8 @@
 #include "maps.h"
 #include "breakpoints.h"
 
+static const char *c = "\033[1;31m", *n = "\033[m";
+
 FILE *outfile = NULL;
 trace_ctx_t *ctx;
 
@@ -78,9 +80,7 @@ static void plug_start(trace_t *t, trace_t *parent, void *data)
 
 static void plug_step(trace_t *t, void *data)
 {
-	intptr_t offset;
-	const char *name = map_name(t->pid, t->regs.rip, &offset);
-	fprintf(outfile, "%d %s [%" PRIxPTR "]\n", t->pid, name, offset);
+	*tag(t->pid, t->regs.rip) += 1;
 }
 
 static void plug_breakpoint(trace_t *t, void *data)
@@ -88,17 +88,19 @@ static void plug_breakpoint(trace_t *t, void *data)
 	int bpid = current_breakpoint_id(t);
 	if (bpid >= CALL_BASE && bpid < CALL_BASE+n_call)
 	{
-		fprintf(outfile, "%5d: START TRACE\n",t->pid);
+		fprintf(stderr, "%5d  %sSTART TRACE%s\n",t->pid,c,n);
 		plug_step(t, data);
 		enable_trace(t);
 	}
 	else if (bpid == RET)
 	{
-		fprintf(outfile, "%5d: STOP TRACE\n",t->pid);
+		fprintf(stderr, "%5d  %sSTOP TRACE%s\n",t->pid,c,n);
 		disable_trace(t);
 	}
 	else
-		fprintf(outfile, "%5d: BREAKPOINT UNKNOWN!\n",t->pid);
+		fprintf(stderr, "%5d  %sBREAKPOINT UNKNOWN!%s\n",t->pid,c,n);
+
+	fflush(stderr);
 }
 
 static void plug_exec(trace_t *t, void *data)
@@ -115,6 +117,7 @@ void sigterm(int sig)
 
 void sigusr1(int sig)
 {
+	print_tags(outfile);
 	fflush(outfile);
 }
 
@@ -246,6 +249,7 @@ int main(int argc, char **argv)
 
 	trace(pid, &wrap);
 
+	print_tags(outfile);
 	fflush(outfile);
 
 	exit(EXIT_SUCCESS);

@@ -181,6 +181,43 @@ tag_t *tag(pid_t pid, uintptr_t address)
 	}
 }
 
+const char *map_name(pid_t pid, uintptr_t address, intptr_t *offset)
+{
+	/* fastpath */
+	if (lastpid && (pid == lastpid) && inside(address, lastregion) )
+	{
+		if (offset) *offset = address-lastregion->base+lastregion->file_offset;
+		return lastregion->name;
+	}
+
+	process_list_t *l = find_process(pid);
+	if (!l->last || !inside(address, l->last))
+	{
+		l->last = find_mmap_region(l, address);
+		if (!l->last)
+		{
+			if (l->n_regions < MAX_REGIONS)
+				l->last = get_mmap_region(pid, address, &l->regions[l->n_regions++]);
+			else
+				fatal_error("%s: MAX_REGIONS reached", __func__);
+		}
+	}
+
+	if (l->last)
+	{
+		lastpid = pid;
+		lastregion = l->last;
+		if (offset) *offset = address-lastregion->base+lastregion->file_offset;
+		return lastregion->name;
+	}
+	else
+	{
+		lastpid = 0;
+		if (offset) *offset = address;
+		return "<unknown>";
+	}
+}
+
 void reset_maps(pid_t pid)
 {
 	lastpid = 0;
