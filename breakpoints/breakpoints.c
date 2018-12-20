@@ -117,12 +117,13 @@ void del_breakpoint(trace_t *t, int bpid)
 		if (prev->next->id == bpid)
 		{
 			if (prev->next->dr_index != -1)
-				unset_watchpoint(t, prev->next->dr_index);
+				debug_reg_unset_breakpoint(t, prev->next->dr_index);
 
 			prev->next = free_bp(prev->next);
-			ctx->bp = pre.next;
 			break;
 		}
+
+	ctx->bp = pre.next;
 }
 
 static void try_activate_bp(trace_t *t, breakpoint_t *bp)
@@ -130,18 +131,17 @@ static void try_activate_bp(trace_t *t, breakpoint_t *bp)
 	if ( (bp->flags & BP_DISABLED) || (bp->dr_index != -1) )
 		return;
 
-	uintptr_t address = 0;
-
 	if (bp->type == BP_FILEOFFSET)
-		address = find_code_address(t->pid, bp->filename, bp->offset);
-	else if (bp->type == BP_ADDRESS)
-		address = bp->address;
-	else
+	{
+		if (bp->address != 0)
+			bp->address = find_code_address(t->pid, bp->filename, bp->offset);
+	}
+	else if (bp->type != BP_ADDRESS)
 		fatal_error("%s: bad breakpoint type", __func__);
 
-	if (address != 0)
+	if (bp->address != 0)
 	{
-		bp->dr_index = set_watchpoint(t, address, bp->prot, bp->size);
+		bp->dr_index = debug_reg_set_watchpoint(t, bp->address, bp->prot, bp->size);
 		if (bp->dr_index < 0)
 			fatal_error("%s: too many break/watchpoints", __func__);
 	}
@@ -227,11 +227,24 @@ void disable_breakpoint(trace_t *t, int bpid)
 	{
 		bp->flags &= BP_DISABLED;
 		if (bp->dr_index != -1)
-			unset_watchpoint(t, bp->dr_index);
+			debug_reg_unset_breakpoint(t, bp->dr_index);
 	}
 }
 
-void copy_breakpoints_on_fork(trace_t *parent, trace_t *child)
+int current_breakpoint_id(trace_t *t)
+{
+	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
+	int dr_index = debug_reg_current_breakpoint(t);
+	breakpoint_t *bp;
+	for (bp = ctx->bp; bp ; bp=bp->next)
+		if (bp->dr_index == dr_index)
+			return bp->id;
+
+	return -1;
+}
+
+
+void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
 {
 	breakpoint_ctx_t *src_ctx = find_bp_ctx(parent->pid);
 
@@ -251,29 +264,35 @@ void copy_breakpoints_on_fork(trace_t *parent, trace_t *child)
 		}
 }
 
-void clear_breakpoints_on_exec(trace_t *t)
+void update_breakpoints_on_exec(trace_t *t)
 {
 	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
 	breakpoint_t pre = { .next = ctx->bp}, *prev = &pre;
 
 	while (prev->next)
-		if ( !(prev->next->flags & BP_COPY_CHILD) )
-		{
-			if (prev->next->dr_index != -1)
-				unset_watchpoint(t, prev->next->dr_index);
-
-			prev->next = free_bp(prev->next);
-		}
+	{
+		prev->next->dr_index = -1; /* drX are cleared on exec */
+		if (prev->next->flags & BP_COPY_EXEC)
+			try_activate_bp(t, prev->next);
 		else
-			prev=prev->next;
+			prev->next = free_bp(prev->next);
+	}
 
 	ctx->bp = pre.next;
 }
 
 void update_breakpoints_post_syscall(trace_t *t)
 {
+	/*
+	 * TODO: deal with unmaps / remaps
+	 */
 	if ( (t->syscall == ARCH_MMAP_SYSCALL) || !(get_arg(t, 3) & MAP_ANONYMOUS) )
 		try_activate_breakpoints(t);
+}
+
+void update_breakpoints_on_exit(trace_t *t)
+{
+	del_bp_ctx(t->pid);
 }
 
 static pid_t wrap_pid_selector(void *data)
@@ -303,7 +322,7 @@ static void wrap_signal(trace_t *t, void *data)
 
 static void wrap_start(trace_t *t, trace_t *parent, void *data)
 {
-	copy_breakpoints_on_fork(parent, t);
+	update_breakpoints_on_fork(parent, t);
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
 	if (plug->start) plug->start(t, parent, plug->data);
 }
@@ -312,7 +331,7 @@ static void wrap_stop(trace_t *t, void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
 	if (plug->stop) plug->stop(t, plug->data);
-	del_bp_ctx(t->pid);
+	update_breakpoints_on_exit(t);
 }
 
 static void wrap_step(trace_t *t, void *data)
@@ -323,7 +342,7 @@ static void wrap_step(trace_t *t, void *data)
 
 static void wrap_exec(trace_t *t, void *data)
 {
-	clear_breakpoints_on_exec(t);
+	update_breakpoints_on_exec(t);
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
 	if (plug->step) plug->exec(t, plug->data);
 }

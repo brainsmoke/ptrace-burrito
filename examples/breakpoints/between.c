@@ -71,12 +71,12 @@ static void print_start(trace_t *t, trace_t *parent, void *data)
 	if (start_filename)
 	{
 		uintptr_t start_addr = find_code_address(t->pid, start_filename, start_file_offset);
-		set_breakpoint(t, start_addr);
+		debug_reg_set_breakpoint(t, start_addr);
 	}
 	if (stop_filename)
 	{
 		uintptr_t stop_addr = find_code_address(t->pid, stop_filename, stop_file_offset);
-		set_breakpoint(t, stop_addr);
+		debug_reg_set_breakpoint(t, stop_addr);
 	}
 
 	if (!ctx)
@@ -107,8 +107,8 @@ static void print_step(trace_t *t, void *data)
 
 static void print_breakpoint(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  %sBREAKPOINT%s %d\n",t->pid,c,n, current_breakpoint(t));
-	if (current_breakpoint(t) == 0)
+	fprintf(stderr, "%5d  %sBREAKPOINT%s %d\n",t->pid,c,n, debug_reg_current_breakpoint(t));
+	if (debug_reg_current_breakpoint(t) == 0)
 		steptrace_process(t, 1);
 	else
 		steptrace_process(t, 0);

@@ -74,12 +74,12 @@ static long write_debugreg(trace_t *t, int index, long value)
 	return ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), value);
 }
 
-void clear_breakpoints(trace_t *t)
+void debug_reg_clear_breakpoints(trace_t *t)
 {
 	ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[7]), 0);
 }
 
-int breakpoints_enabled(trace_t *t)
+int debug_reg_breakpoints_enabled(trace_t *t)
 {
 	return (t->debug_regs.dr[7] & 0xff);
 }
@@ -116,8 +116,11 @@ void init_debug_regs(trace_t *t)
 	write_debugreg(t, 6, 0);
 }
 
-int breakpoint_fetch_status(trace_t *t)
+int debug_reg_breakpoints_triggered(trace_t *t)
 {
+	if ( !debug_reg_breakpoints_enabled(t) )
+		return 0;
+
 	long dr6 = read_debugreg(t, 6);
 	t->debug_regs.dr[6] = dr6;
 	if (dr6)
@@ -125,7 +128,7 @@ int breakpoint_fetch_status(trace_t *t)
 	return (dr6 & 0xf) && !(dr6 & 0x4000);
 }
 
-int current_breakpoint(trace_t *t)
+int debug_reg_current_breakpoint(trace_t *t)
 {
 	long dr6 = t->debug_regs.dr[6];
 	int i;
@@ -138,7 +141,7 @@ int current_breakpoint(trace_t *t)
 	return -1;
 }
 
-static int valid_watchpoint(trace_t *t, int index)
+static int valid_breakpoint(trace_t *t, int index)
 {
 	if ( (index < 0) || (index >= MAX_BREAKPOINTS) )
 		return 0;
@@ -214,7 +217,7 @@ static int get_breakpoint_size(int len_field)
 	}
 }
 
-int set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
+int debug_reg_set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
 {
 	int index = get_free_debugreg(t);
 	if ( index < 0 )
@@ -239,18 +242,18 @@ int set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
 	return index;
 }
 
-int set_breakpoint(trace_t *t, uintptr_t address)
+int debug_reg_set_breakpoint(trace_t *t, uintptr_t address)
 {
-	return set_watchpoint(t, address, PROT_EXEC, 1);
+	return debug_reg_set_watchpoint(t, address, PROT_EXEC, 1);
 }
 
-int get_watchpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *size)
+int debug_reg_get_breakpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *size)
 {
 	*address = 0;
 	*prot = 0;
 	*size = 0;
 
-	if ( !valid_watchpoint(t, index) )
+	if ( !valid_breakpoint(t, index) )
 		return -1;
 
 	*address = t->debug_regs.dr[index];
@@ -260,9 +263,9 @@ int get_watchpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *si
 	return index;
 }
 
-int unset_watchpoint(trace_t *t, int index)
+int debug_reg_unset_breakpoint(trace_t *t, int index)
 {
-	if ( !valid_watchpoint(t, index) )
+	if ( !valid_breakpoint(t, index) )
 		return -1;
 
 	t->debug_regs.dr[7] &= DR7_MASK(index);

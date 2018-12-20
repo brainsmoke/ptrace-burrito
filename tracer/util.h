@@ -22,16 +22,15 @@ void set_registers(trace_t *t);
 
 void init_debug_regs(trace_t *t);
 
-void clear_breakpoints(trace_t *t);
+void debug_reg_clear_breakpoints(trace_t *t);
 
-int breakpoints_enabled(trace_t *t);
+int debug_reg_breakpoints_enabled(trace_t *t);
+int debug_reg_breakpoints_triggered(trace_t *t);
 
-int breakpoint_fetch_status(trace_t *t);
+/* returns -1 if not trapped, returns breakpoint/watchpoint number if trapped */
+int debug_reg_current_breakpoint(trace_t *t);
 
-/* returns -1 if not trapped, returns watchpoint number if trapped */
-int current_breakpoint(trace_t *t);
-
-/* returns breakpoint number, or -1 on error,
+/* returns breakpoint/watchpoint number, or -1 on error,
  *
  * use prot=PROT_READ|PROT_WRITE to break on reads & writes, PROT_WRITE for writes,
  * PROT_EXEC for breakpoints
@@ -39,10 +38,10 @@ int current_breakpoint(trace_t *t);
  * breakpoints are cleared on exec
  *
  */
-int set_breakpoint(trace_t *t, uintptr_t address);
-int set_watchpoint(trace_t *t, uintptr_t address, int prot, int size);
-int get_watchpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *size);
-int unset_watchpoint(trace_t *t, int index);
+int debug_reg_set_breakpoint(trace_t *t, uintptr_t address);
+int debug_reg_set_watchpoint(trace_t *t, uintptr_t address, int prot, int size);
+int debug_reg_get_breakpoint(trace_t *t, int index, uintptr_t *address, int *prot, int *size);
+int debug_reg_unset_breakpoint(trace_t *t, int index);
 
 
 void get_siginfo(pid_t pid, siginfo_t *info);

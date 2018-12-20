@@ -110,7 +110,7 @@ static void print_breakpoint(trace_t *t, void *data)
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
 	if (plug->breakpoint) plug->breakpoint(t, plug->data);
 	fprintf(stderr, "%5d  ", t->pid);
-	fprintf(stderr, "%sBREAKPOINT%s %d\n", hi, n, current_breakpoint(t));
+	fprintf(stderr, "%sBREAKPOINT%s %d\n", hi, n, debug_reg_current_breakpoint(t));
 	fflush(stderr);
 }
 

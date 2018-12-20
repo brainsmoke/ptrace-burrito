@@ -31,12 +31,21 @@ void del_breakpoint(trace_t *t, int bpid);
 
 void try_activate_breakpoints(trace_t *t);
 
-void copy_breakpoints_on_fork(trace_t *parent, trace_t *child);
-void clear_breakpoints_on_exec(trace_t *t);
-void update_breakpoints_post_syscall(trace_t *t);
-
 int current_breakpoint_id(trace_t *t);
 
+/* in plug->start() */
+void update_breakpoints_on_fork(trace_t *parent, trace_t *child);
+
+/* in plug->exec() */
+void update_breakpoints_on_exec(trace_t *t);
+
+/* in plug->post_call() */
+void update_breakpoints_post_syscall(trace_t *t);
+
+/* in plug->stop() */
+void update_breakpoints_on_exit(trace_t *t);
+
+/* wrapper calling the update functions above automatically */
 tracer_plugin_t breakpoint_wrap(tracer_plugin_t *plug);
 
 #endif
