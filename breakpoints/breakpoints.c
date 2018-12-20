@@ -133,7 +133,7 @@ static void try_activate_bp(trace_t *t, breakpoint_t *bp)
 
 	if (bp->type == BP_FILEOFFSET)
 	{
-		if (bp->address != 0)
+		if (bp->address == 0)
 			bp->address = find_code_address(t->pid, bp->filename, bp->offset);
 	}
 	else if (bp->type != BP_ADDRESS)
@@ -225,9 +225,12 @@ void disable_breakpoint(trace_t *t, int bpid)
 	breakpoint_t *bp = find_breakpoint(ctx, bpid);
 	if (bp && !(bp->flags & BP_DISABLED) )
 	{
-		bp->flags &= BP_DISABLED;
+		bp->flags |= BP_DISABLED;
 		if (bp->dr_index != -1)
+		{
 			debug_reg_unset_breakpoint(t, bp->dr_index);
+			bp->dr_index = -1;
+		}
 	}
 }
 
@@ -246,6 +249,10 @@ int current_breakpoint_id(trace_t *t)
 
 void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
 {
+	/* first traced process */
+	if (parent == NULL)
+		return;
+
 	breakpoint_ctx_t *src_ctx = find_bp_ctx(parent->pid);
 
 	breakpoint_t *bp, *new_bp;
@@ -271,9 +278,15 @@ void update_breakpoints_on_exec(trace_t *t)
 
 	while (prev->next)
 	{
-		prev->next->dr_index = -1; /* drX are cleared on exec */
 		if (prev->next->flags & BP_COPY_EXEC)
+		{
+			prev->next->dr_index = -1; /* drX are cleared on exec */
+			if (prev->next->type == BP_FILEOFFSET)
+				prev->next->address = 0;
+
 			try_activate_bp(t, prev->next);
+			prev = prev->next;
+		}
 		else
 			prev->next = free_bp(prev->next);
 	}
