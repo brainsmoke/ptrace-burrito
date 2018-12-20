@@ -43,7 +43,7 @@ TARGETS=$(TEST_TARGETS)\
 	examples/tracer/faketsc\
 	examples/syscalls/nosignals\
 	examples/maps/codecov\
-	examples/maps/between\
+	examples/breakpoints/between\
 	examples/syscalls/printregs
 
 TRACER_OBJECTS=\
@@ -65,7 +65,10 @@ SYSCALLS_OBJECTS=\
 MAPS_OBJECTS=\
 	maps/maps.o
 
-OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS)
+BREAKPOINTS_OBJECTS=\
+	breakpoints/breakpoints.o
+
+OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS)
 
 CLEAN=$(TARGETS) $(OBJECTS)
 
@@ -82,11 +85,14 @@ $(OBJECTS): depend
 tracer/%.o: tracer/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+syscalls/%.o: syscalls/%.c
+	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
+
 maps/%.o: maps/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
-syscalls/%.o: syscalls/%.c
-	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
+breakpoints/%.o: breakpoints/%.c
+	$(CC) $(CFLAGS) -Isyscalls -Itracer -Imaps -c -o $@ $<
 
 
 
@@ -110,6 +116,13 @@ examples/maps/%.o: examples/maps/%.c
 	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -c -o $@ $<
 
 examples/maps/%: examples/maps/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+examples/breakpoints/%.o: examples/breakpoints/%.c
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -c -o $@ $<
+
+examples/breakpoints/%: examples/breakpoints/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS)
 
 

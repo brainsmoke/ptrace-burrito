@@ -294,7 +294,7 @@ uint64_t get_timestamp(void)
 #define ARCH_MMAP_SYSCALL __NR_mmap
 #define ARCH_STAT_SYSCALL __NR_stat
 #define ARCH_LSTAT_SYSCALL __NR_lstat
-#define ARCH_FSTAT_SYSCALL __NR_fstat64
+#define ARCH_FSTAT_SYSCALL __NR_fstat
 #endif
 
 #ifdef __i386__

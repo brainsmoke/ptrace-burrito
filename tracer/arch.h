@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <sys/user.h>
 #include <sys/procfs.h>
+#include <linux/unistd.h>
 
 /*
  * Architecture specific definitions:
@@ -32,6 +33,11 @@ typedef struct { int dr[8]; } debug_registers_t;
 #define ELF_DATA        ELFDATA2LSB
 #define ELF_ARCH        EM_386
 
+#define ARCH_MMAP_SYSCALL __NR_mmap2
+#define ARCH_STAT_SYSCALL __NR_stat64
+#define ARCH_LSTAT_SYSCALL __NR_lstat64
+#define ARCH_FSTAT_SYSCALL __NR_fstat64
+
 #endif
 
 #ifdef __x86_64__
@@ -45,6 +51,10 @@ typedef struct { long long int dr[8]; } debug_registers_t;
 #define ELF_DATA        ELFDATA2LSB
 #define ELF_ARCH        EM_X86_64
 
+#define ARCH_MMAP_SYSCALL __NR_mmap
+#define ARCH_STAT_SYSCALL __NR_stat
+#define ARCH_LSTAT_SYSCALL __NR_lstat
+#define ARCH_FSTAT_SYSCALL __NR_fstat
 #endif
 
 #ifdef __powerpc__

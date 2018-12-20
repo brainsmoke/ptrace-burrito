@@ -97,6 +97,14 @@ static void print_step(trace_t *t, void *data)
 	if (plug->step) plug->step(t, plug->data);
 }
 
+static void print_exec(trace_t *t, void *data)
+{
+	tracer_plugin_t *plug = (tracer_plugin_t *)data;
+	if (plug->step) plug->step(t, plug->data);
+	fprintf(stderr, "%sEXEC%s\n", hi, n);
+	fflush(stderr);
+}
+
 static void print_breakpoint(trace_t *t, void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
@@ -118,6 +126,7 @@ tracer_plugin_t debug_wrap(tracer_plugin_t *plug)
 		.start = print_start,
 		.stop = print_stop,
 		.step = print_step,
+		.exec = print_exec,
 		.breakpoint = print_breakpoint,
 		.pid_selector = select_pid,
 		.data = (void *)plug,
