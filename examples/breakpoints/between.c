@@ -23,17 +23,72 @@
 #include "util.h"
 #include "process.h"
 #include "maps.h"
+#include "breakpoints.h"
 
 static const char *c = "\033[1;31m", *n = "\033[m";
 
-int step;
 FILE *outfile = NULL;
 trace_ctx_t *ctx;
 int verbose;
-char *start_filename = NULL, *stop_filename = NULL;
-uintptr_t start_file_offset = 0, stop_file_offset = 0;
 
-static void print_pre_call(trace_t *t, void *data)
+typedef struct
+{
+	char *filename;
+	uintptr_t offset;
+
+} fileoff_t;
+
+fileoff_t start[MAX_BREAKPOINTS], stop[MAX_BREAKPOINTS];
+
+int n_start = 0, n_stop = 0;
+
+enum
+{
+	START_BASE = 0,
+	STOP_BASE = MAX_BREAKPOINTS,
+};
+
+static void set_breakpoints(trace_t *t)
+{
+	int i;
+
+	for (i=0; i<n_start; i++)
+		add_breakpoint_fileoff(t, START_BASE+i, start[i].filename, start[i].offset,
+			                      BP_COPY_EXEC|BP_COPY_CHILD);
+
+	for (i=0; i<n_stop; i++)
+		add_breakpoint_fileoff(t, STOP_BASE+i, stop[i].filename, stop[i].offset,
+			                       BP_COPY_EXEC|BP_COPY_CHILD);
+}
+
+static void enable_trace(trace_t *t)
+{
+	int i;
+
+	steptrace_process(t, 1);
+
+	for (i=0; i<n_start; i++)
+		disable_breakpoint(t,START_BASE+i);
+
+	for (i=0; i<n_stop; i++)
+		enable_breakpoint(t,STOP_BASE+i);
+}
+
+static void disable_trace(trace_t *t)
+{
+	int i;
+
+	steptrace_process(t, 0);
+
+	for (i=0; i<n_start; i++)
+		enable_breakpoint(t,START_BASE+i);
+
+	for (i=0; i<n_stop; i++)
+		disable_breakpoint(t,STOP_BASE+i);
+}
+
+
+static void plug_pre_call(trace_t *t, void *data)
 {
 	if (verbose)
 	{
@@ -43,7 +98,7 @@ static void print_pre_call(trace_t *t, void *data)
 	}
 }
 
-static void print_post_call(trace_t *t, void *data)
+static void plug_post_call(trace_t *t, void *data)
 {
 	if (verbose)
 	{
@@ -53,7 +108,7 @@ static void print_post_call(trace_t *t, void *data)
 	}
 }
 
-static void print_signal(trace_t *t, void *data)
+static void plug_signal(trace_t *t, void *data)
 {
 	if (verbose)
 	{
@@ -63,21 +118,12 @@ static void print_signal(trace_t *t, void *data)
 	}
 }
 
-static void print_start(trace_t *t, trace_t *parent, void *data)
+static void plug_start(trace_t *t, trace_t *parent, void *data)
 {
+	if (parent == NULL)
+		set_breakpoints(t);
 
-//	if (step)
-	
-	if (start_filename)
-	{
-		uintptr_t start_addr = find_code_address(t->pid, start_filename, start_file_offset);
-		debug_reg_set_breakpoint(t, start_addr);
-	}
-	if (stop_filename)
-	{
-		uintptr_t stop_addr = find_code_address(t->pid, stop_filename, stop_file_offset);
-		debug_reg_set_breakpoint(t, stop_addr);
-	}
+	disable_trace(t);
 
 	if (!ctx)
 		ctx=t->ctx;
@@ -89,7 +135,7 @@ static void print_start(trace_t *t, trace_t *parent, void *data)
 	}
 }
 
-static void print_stop(trace_t *t, void *data)
+static void plug_stop(trace_t *t, void *data)
 {
 	if (verbose)
 	{
@@ -100,22 +146,34 @@ static void print_stop(trace_t *t, void *data)
 	}
 }
 
-static void print_step(trace_t *t, void *data)
+static void plug_step(trace_t *t, void *data)
 {
 	*tag(t->pid, t->regs.rip) += 1;
 }
 
-static void print_breakpoint(trace_t *t, void *data)
+static void plug_breakpoint(trace_t *t, void *data)
 {
-	fprintf(stderr, "%5d  %sBREAKPOINT%s %d\n",t->pid,c,n, debug_reg_current_breakpoint(t));
-	if (debug_reg_current_breakpoint(t) == 0)
-		steptrace_process(t, 1);
+	int bpid = current_breakpoint_id(t);
+	if (bpid >= START_BASE && bpid < START_BASE+n_start)
+	{
+		fprintf(stderr, "%5d  %sSTART TRACE%s\n",t->pid,c,n);
+		plug_step(t, data);
+		enable_trace(t);
+	}
+	else if (bpid >= STOP_BASE && bpid < STOP_BASE+n_stop)
+	{
+		fprintf(stderr, "%5d  %sSTOP TRACE%s\n",t->pid,c,n);
+		disable_trace(t);
+	}
 	else
-		steptrace_process(t, 0);
+		fprintf(stderr, "%5d  %sBREAKPOINT UNKNOWN!%s\n",t->pid,c,n);
+
+	fflush(stderr);
 }
 
-static void print_exec(trace_t *t, void *data)
+static void plug_exec(trace_t *t, void *data)
 {
+	disable_trace(t);
 	reset_maps(t->pid);
 	if (verbose)
 	{
@@ -149,7 +207,6 @@ int main(int argc, char **argv)
 	char *progname = argv[0];
 	pid_t pid = -1;
 
-	step = 0;
 	verbose = 0;
 	for (argv++; *argv && **argv == '-' ; argv++)
 	{
@@ -201,40 +258,32 @@ int main(int argc, char **argv)
 		}
 		else if ( strcmp(*argv, "-stop") == 0 )
 		{
-			argv++;
-
-			if ( !*argv )
+			if ( !argv[1] || !argv[2] || (n_stop >= MAX_BREAKPOINTS) )
 				usage(progname);
 
-			stop_filename = *argv;
+			stop[n_stop++] = (fileoff_t)
+			{
+				.filename = argv[1],
+				.offset = strtoll(argv[2], NULL, 16)
+			};
 
-			argv++;
-
-			if ( !*argv )
-				usage(progname);
-
-			stop_file_offset = strtoll(*argv, NULL, 16);
+			argv+=2;
 		}
 		else if ( strcmp(*argv, "-start") == 0 )
 		{
-			argv++;
-
-			if ( !*argv )
+			if ( !argv[1] || !argv[2] || (n_start >= MAX_BREAKPOINTS) )
 				usage(progname);
 
-			start_filename = *argv;
+			start[n_start++] = (fileoff_t)
+			{
+				.filename = argv[1],
+				.offset = strtoll(argv[2], NULL, 16)
+			};
 
-			argv++;
-
-			if ( !*argv )
-				usage(progname);
-
-			start_file_offset = strtoll(*argv, NULL, 16);
+			argv+=2;
 		}
 		else if ( strcmp(*argv, "-verbose") == 0 )
 			verbose = 1;
-//		else if ( strcmp(*argv, "-step") == 0 )
-//			step = 1;
 		else
 			usage(progname);
 	}
@@ -247,24 +296,26 @@ int main(int argc, char **argv)
 
 	tracer_plugin_t plug = (tracer_plugin_t)
 	{
-		.pre_call = print_pre_call,
-		.post_call = print_post_call,
-		.signal = print_signal,
-		.start = print_start,
-		.stop = print_stop,
-		.step = print_step,
-		.exec = print_exec,
+		.pre_call = plug_pre_call,
+		.post_call = plug_post_call,
+		.signal = plug_signal,
+		.start = plug_start,
+		.stop = plug_stop,
+		.step = plug_step,
+		.exec = plug_exec,
 		.pid_selector = any_pid, /* always returns -1 */
-		.breakpoint = print_breakpoint,
+		.breakpoint = plug_breakpoint,
 		.data = NULL,
 	};
+
+	tracer_plugin_t wrap = breakpoint_wrap(&plug);
 
 	if (pid == -1)
 	{
 		if (! *argv )
 			usage(progname);
 		else
-			pid = run_traceable(argv[0], argv, 1, 0);
+			pid = run_traceable(argv[0], argv, 0, 0);
 	}
 	else
 	{
@@ -286,7 +337,7 @@ int main(int argc, char **argv)
 		trace_attach(pid);
 	}
 
-	trace(pid, &plug);
+	trace(pid, &wrap);
 
 	print_tags(outfile);
 	fflush(outfile);
