@@ -1,20 +1,13 @@
 
 #define _GNU_SOURCE
 
-#include <sys/ptrace.h>
 #include <sys/wait.h>
-
-#include <linux/ptrace.h>
-#include <sys/personality.h>
-#include <sys/syscall.h>
 
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <errno.h>
 #include <signal.h>
-#include <sched.h>
 
 #include "errors.h"
 #include "debug.h"
@@ -80,11 +73,11 @@ static void disable_trace(trace_t *t)
 
 	steptrace_process(t, 0);
 
-	for (i=0; i<n_start; i++)
-		enable_breakpoint(t,START_BASE+i);
-
 	for (i=0; i<n_stop; i++)
 		disable_breakpoint(t,STOP_BASE+i);
+
+	for (i=0; i<n_start; i++)
+		enable_breakpoint(t,START_BASE+i);
 }
 
 
