@@ -37,20 +37,19 @@ typedef struct breakpoint_ctx_s breakpoint_ctx_t;
 };
 
 static breakpoint_ctx_t *list = NULL;
-static breakpoint_ctx_t *last_list = NULL;
-
+static breakpoint_ctx_t *last_ctx = NULL;
 
 static breakpoint_ctx_t *find_bp_ctx(pid_t pid)
 {
-	if (last_list && last_list->pid == pid)
-		return last_list;
+	if (last_ctx && last_ctx->pid == pid)
+		return last_ctx;
 
 	breakpoint_ctx_t *l = list;
 	for (l=list; l; l=l->next)
 	{
 		if (l->pid == pid)
 		{
-			last_list = l;
+			last_ctx = l;
 			return l;
 		}
 	}
@@ -62,7 +61,7 @@ static breakpoint_ctx_t *find_bp_ctx(pid_t pid)
 		.pid = pid,
 		.bp = NULL,
 	};
-	last_list = list;
+	last_ctx = list;
 	return list;
 }
 
@@ -82,7 +81,7 @@ static void free_bp_list(breakpoint_t *l)
 
 static void del_bp_ctx(pid_t pid)
 {
-	last_list = NULL;
+	last_ctx = NULL;
 	breakpoint_ctx_t pre = { .next = list }, *l;
 
 	for (l=&pre; l->next; l=l->next)
@@ -271,6 +270,12 @@ void clear_breakpoints_on_exec(trace_t *t)
 	ctx->bp = pre.next;
 }
 
+void update_breakpoints_post_syscall(trace_t *t)
+{
+	if ( (t->syscall == ARCH_MMAP_SYSCALL) || !(get_arg(t, 3) & MAP_ANONYMOUS) )
+		try_activate_breakpoints(t);
+}
+
 static pid_t wrap_pid_selector(void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
@@ -285,9 +290,7 @@ static void wrap_pre_call(trace_t *t, void *data)
 
 static void wrap_post_call(trace_t *t, void *data)
 {
-	if ( (t->syscall == ARCH_MMAP_SYSCALL) || !(get_arg(t, 3) & MAP_ANONYMOUS) )
-		try_activate_breakpoints(t);
-
+	update_breakpoints_post_syscall(t);
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
 	if (plug->post_call) plug->post_call(t, plug->data);
 }

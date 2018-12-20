@@ -33,6 +33,7 @@ void try_activate_breakpoints(trace_t *t);
 
 void copy_breakpoints_on_fork(trace_t *parent, trace_t *child);
 void clear_breakpoints_on_exec(trace_t *t);
+void update_breakpoints_post_syscall(trace_t *t);
 
 int current_breakpoint_id(trace_t *t);
 
