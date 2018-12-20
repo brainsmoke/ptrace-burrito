@@ -125,7 +125,7 @@ int debug_reg_breakpoints_triggered(trace_t *t)
 	t->debug_regs.dr[6] = dr6;
 	if (dr6)
 		write_debugreg(t, 6, 0);
-	return (dr6 & 0xf) && !(dr6 & 0x4000);
+	return dr6 & 0xf;
 }
 
 int debug_reg_current_breakpoint(trace_t *t)
