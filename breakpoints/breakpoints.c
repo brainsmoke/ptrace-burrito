@@ -1,10 +1,6 @@
 
-#include <unistd.h>
 #include <string.h>
-#include <stdio.h>
-#include <errno.h>
-#include <sys/mman.h>
-#include <inttypes.h>
+#include <stdlib.h>
 
 #include "breakpoints.h"
 #include "errors.h"
