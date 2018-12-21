@@ -21,7 +21,6 @@
 static const char *c = "\033[1;31m", *n = "\033[m";
 
 FILE *outfile = NULL;
-trace_ctx_t *ctx;
 
 typedef struct
 {
@@ -73,9 +72,6 @@ static void plug_start(trace_t *t, trace_t *parent, void *data)
 {
 	if (parent == NULL)
 		set_breakpoints(t);
-
-	if (!ctx)
-		ctx=t->ctx;
 }
 
 static void plug_step(trace_t *t, void *data)
@@ -111,8 +107,7 @@ static void plug_exec(trace_t *t, void *data)
 
 void sigterm(int sig)
 {
-	if (ctx)
-		detach_all(ctx);
+	detach_all();
 }
 
 void sigusr1(int sig)

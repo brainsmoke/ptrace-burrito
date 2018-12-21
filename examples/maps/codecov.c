@@ -28,7 +28,6 @@ static const char *c = "\033[1;31m", *n = "\033[m";
 
 int step;
 FILE *outfile = NULL;
-trace_ctx_t *ctx;
 int verbose;
 
 static void print_pre_call(trace_t *t, void *data)
@@ -67,9 +66,6 @@ static void print_start(trace_t *t, trace_t *parent, void *data)
 	if (step)
 		steptrace_process(t, 1);
 
-	if (!ctx)
-		ctx=t->ctx;
-
 	if (verbose)
 	{
 		fprintf(stderr, "%5d  %sSTART%s\n",t->pid,c,n);
@@ -105,8 +101,7 @@ static void print_exec(trace_t *t, void *data)
 
 void sigterm(int sig)
 {
-	if (ctx)
-		detach_all(ctx);
+	detach_all();
 }
 
 void sigusr1(int sig)

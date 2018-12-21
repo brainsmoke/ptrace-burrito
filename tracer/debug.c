@@ -33,9 +33,9 @@ const char *trace_desc[] =
 	"    [ es] [_es] [ fs] [_fs]    [ gs] [_gs] [ orig eax]",
 	"    [   eip   ] [ cs] [_cs]    [  eflags ] [   esp   ]",
 	"    [ ss] [_ss] [dead beef]    st sg ex fl [   pid   ]",
-	"    [  status ] [ syscall ]    [  *data  ] [  *ctx   ]",
-	"    [   dr0   ] [   dr1   ]    [   dr2   ] [   dr3   ]",
-	"    [   ???   ] [   ???   ]    [   dr6   ] [   dr7   ]",
+	"    [  status ] [ syscall ]    [   dr0   ] [   dr1   ]",
+	"    [   dr2   ] [   dr3   ]    [   ???   ] [   ???   ]",
+	"    [   dr6   ] [   dr7   ]    [  *data  ]",
 };
 
 const char *registers_desc[] =
@@ -69,11 +69,11 @@ const char *trace_desc[] =
 	"    [          es         ]    [          fs         ]",
 	"    [          gs         ]    [dead beef] st sg ex fl",
 	"    [   pid   ] [  status ]    [        syscall      ]",
-	"    [        *data        ]    [         *ctx        ]",
 	"    [         dr0         ]    [         dr1         ]",
 	"    [         dr2         ]    [         dr3         ]",
 	"    [         ???         ]    [         ???         ]",
 	"    [         dr6         ]    [         dr7         ]",
+	"    [        *data        ]",
 };
 
 const char *registers_desc[] =
