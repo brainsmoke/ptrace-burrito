@@ -17,7 +17,7 @@ static void inject_writeecho(trace_t *t, void *data)
 	registers_t regs = t->regs;
 	if ( get_syscall(t) == __NR_write )
 	{
-		long args[] = { 1, get_arg(t, 1), get_arg(t, 2) };
+		long args[] = { 1, get_syscall_arg(t, 1), get_syscall_arg(t, 2) };
 		inject_syscall(t, __NR_write, args, 3, NULL); /* ignores signals */
 	}
 	print_registers_if_diff(&t->regs, &regs);

@@ -767,7 +767,7 @@ void print_trace_call(trace_t *t)
 	//syscall_info_t *info = syscall_info(t);
 	//long args[info->argc];
 	long args[6];
-	get_args(t, args, 6);
+	get_syscall_args(t, args, 6);
 
 	print_call(get_syscall(t), args, 6);
 
@@ -775,7 +775,7 @@ void print_trace_call(trace_t *t)
 	if ( get_syscall(t) == __NR_socketcall )
 	{
 		fprintf(out, " => ");
-		print_socketcall_name(get_arg(t, 0));
+		print_socketcall_name(get_syscall_arg(t, 0));
 	}
 #endif
 	fprintf(out, "\n");

@@ -295,7 +295,7 @@ void update_breakpoints_post_syscall(trace_t *t)
 	/*
 	 * TODO: deal with unmaps / remaps
 	 */
-	if ( (t->syscall == ARCH_MMAP_SYSCALL) || !(get_arg(t, 3) & MAP_ANONYMOUS) )
+	if ( (t->syscall == ARCH_MMAP_SYSCALL) || !(get_syscall_arg(t, 3) & MAP_ANONYMOUS) )
 		try_activate_breakpoints(t);
 }
 

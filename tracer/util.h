@@ -61,11 +61,11 @@ void set_sp(trace_t *t, uintptr_t val);
 unsigned long get_syscall(trace_t *t);
 void set_syscall(trace_t *t, unsigned long val);
 
-unsigned long get_arg(trace_t *t, int number);
-void set_arg(trace_t *t, int number, unsigned long val);
+unsigned long get_syscall_arg(trace_t *t, int number);
+void set_syscall_arg(trace_t *t, int number, unsigned long val);
 
-void get_args(trace_t *t, long *args, int argc);
-void set_args(trace_t *t, long *args, int argc);
+void get_syscall_args(trace_t *t, long *args, int argc);
+void set_syscall_args(trace_t *t, long *args, int argc);
 
 unsigned long get_result(trace_t *t);
 void set_result(trace_t *t, unsigned long val);

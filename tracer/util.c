@@ -347,7 +347,7 @@ void set_result(trace_t *t, unsigned long val)
 	t->regs.eax = val;
 }
 
-unsigned long get_arg(trace_t *t, int number)
+unsigned long get_syscall_arg(trace_t *t, int number)
 {
 	switch (number)
 	{
@@ -369,7 +369,7 @@ unsigned long get_arg(trace_t *t, int number)
 	}
 }
 
-void set_arg(trace_t *t, int number, unsigned long val)
+void set_syscall_arg(trace_t *t, int number, unsigned long val)
 {
 	switch (number)
 	{
@@ -473,7 +473,7 @@ void set_result(trace_t *t, unsigned long val)
 	t->regs.rax = val;
 }
 
-unsigned long get_arg(trace_t *t, int number)
+unsigned long get_syscall_arg(trace_t *t, int number)
 {
 	switch (number)
 	{
@@ -495,7 +495,7 @@ unsigned long get_arg(trace_t *t, int number)
 	}
 }
 
-void set_arg(trace_t *t, int number, unsigned long val)
+void set_syscall_arg(trace_t *t, int number, unsigned long val)
 {
 	switch (number)
 	{
@@ -551,18 +551,18 @@ void emulate_tsc(trace_t *t, uint64_t timestamp)
 
 #endif
 
-void get_args(trace_t *t, long *args, int argc)
+void get_syscall_args(trace_t *t, long *args, int argc)
 {
 	int i;
 	for (i=0; i<argc; i++)
-		args[i] = get_arg(t, i);
+		args[i] = get_syscall_arg(t, i);
 }
 
-void set_args(trace_t *t, long *args, int argc)
+void set_syscall_args(trace_t *t, long *args, int argc)
 {
 	int i;
 	for (i=0; i<argc; i++)
-		set_arg(t, i, args[i]);
+		set_syscall_arg(t, i, args[i]);
 }
 
 void skip_syscall(trace_t *t)
@@ -655,7 +655,7 @@ static registers_t inject_syscall_init(trace_t *t,
 		fatal_error("wrong number of arguments: %d", argc);
 
 	set_syscall(t, call);
-	set_args(t, args, argc);
+	set_syscall_args(t, args, argc);
 	set_trap_flag(t, 0);
 
 	if (t->state == POST_CALL)
