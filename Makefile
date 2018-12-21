@@ -46,6 +46,7 @@ TARGETS=$(TEST_TARGETS)\
 	examples/breakpoints/between\
 	examples/breakpoints/trace_func\
 	examples/breakpoints/codecov_func\
+	examples/breakpoints/callee\
 	examples/syscalls/printregs
 
 TRACER_OBJECTS=\
