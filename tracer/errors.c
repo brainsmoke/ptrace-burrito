@@ -70,7 +70,7 @@ void fatal_error(const char *fmt, ...)
 	va_end(ap);
 	fflush(stderr);
 	call_error_callbacks();
-	abort();
+	exit(EXIT_FAILURE);
 }
 
 /* print error, die immediately */
