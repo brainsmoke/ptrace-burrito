@@ -11,7 +11,6 @@
 
 #include "errors.h"
 #include "debug.h"
-#include "debug_syscalls.h"
 #include "trace.h"
 #include "util.h"
 #include "process.h"
