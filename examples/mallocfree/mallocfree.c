@@ -53,10 +53,28 @@ static void disable_trace(trace_t *t)
 	enable_breakpoint(t,FREE);
 }
 
+static void plug_post_call(trace_t *t, void *data)
+{
+	if (all_breakpoints_resolved(t))
+		trace_syscalls(t, 0);
+}
+
 static void plug_start(trace_t *t, trace_t *parent, void *data)
 {
 	if (parent == NULL)
 		set_breakpoints(t);
+}
+
+static void plug_exec(trace_t *t, void *data)
+{
+	trace_syscalls(t, 1);
+}
+
+static pid_t next = -1;
+pid_t plug_pid(void *data)
+{
+	pid_t cur = next;
+	return cur;
 }
 
 static void plug_breakpoint(trace_t *t, void *data)
@@ -64,17 +82,19 @@ static void plug_breakpoint(trace_t *t, void *data)
 	int bpid = current_breakpoint_id(t);
 	if (bpid == MALLOC)
 	{
-		printf("%d malloc( %lu ) = ", t->pid, get_func_arg(t, 0));
+		fprintf(outfile, "%d malloc( %lu ) = ", t->pid, get_func_arg(t, 0));
+		next = t->pid;
 		enable_trace(t);
 	}
 	else if (bpid == RET)
 	{
-		printf("0x%lx\n", get_func_result(t));
+		next = -1;
+		fprintf(outfile, "0x%lx\n", get_func_result(t));
 		disable_trace(t);
 	}
 	else if (bpid == FREE)
 	{
-		printf("%d free( 0x%lx )\n", t->pid, get_func_arg(t, 0));
+		fprintf(outfile, "%d free( 0x%lx )\n", t->pid, get_func_arg(t, 0));
 	}
 	else
 		fprintf(outfile, "%5d: BREAKPOINT UNKNOWN!\n",t->pid);
@@ -162,8 +182,10 @@ int main(int argc, char **argv)
 
 	tracer_plugin_t plug = (tracer_plugin_t)
 	{
-		.pid_selector = any_pid, /* always returns -1 */
+		.pid_selector = plug_pid,
+		.post_call = plug_post_call,
 		.start = plug_start,
+		.exec = plug_exec,
 		.breakpoint = plug_breakpoint,
 		.data = NULL,
 	};

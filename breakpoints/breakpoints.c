@@ -122,25 +122,29 @@ void del_breakpoint(trace_t *t, int bpid)
 	ctx->bp = pre.next;
 }
 
+static void try_resolve_bp(trace_t *t, breakpoint_t *bp)
+{
+	if ( bp->address == 0 )
+	{
+		if (bp->type == BP_FILEOFFSET)
+			bp->address = find_code_address(t->pid, bp->filename, bp->offset);
+
+		else if (bp->type != BP_ADDRESS)
+			fatal_error("%s: bad breakpoint type", __func__);
+	}
+}
+
 static void try_activate_bp(trace_t *t, breakpoint_t *bp)
 {
-	if ( (bp->flags & BP_DISABLED) || (bp->dr_index != -1) )
+	try_resolve_bp(t, bp);
+
+	if ( (bp->address == 0) || (bp->flags & BP_DISABLED) || (bp->dr_index != -1) )
 		return;
 
-	if (bp->type == BP_FILEOFFSET)
-	{
-		if (bp->address == 0)
-			bp->address = find_code_address(t->pid, bp->filename, bp->offset);
-	}
-	else if (bp->type != BP_ADDRESS)
-		fatal_error("%s: bad breakpoint type", __func__);
+	bp->dr_index = debug_reg_set_watchpoint(t, bp->address, bp->prot, bp->size);
 
-	if (bp->address != 0)
-	{
-		bp->dr_index = debug_reg_set_watchpoint(t, bp->address, bp->prot, bp->size);
-		if (bp->dr_index < 0)
+	if (bp->dr_index < 0)
 			fatal_error("%s: too many break/watchpoints", __func__);
-	}
 }
 
 void try_activate_breakpoints(trace_t *t)
@@ -149,6 +153,17 @@ void try_activate_breakpoints(trace_t *t)
 	breakpoint_t *bp;
 	for (bp = ctx->bp; bp ; bp=bp->next)
 		try_activate_bp(t, bp);
+}
+
+int all_breakpoints_resolved(trace_t *t)
+{
+	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
+	breakpoint_t *bp;
+	for (bp = ctx->bp; bp ; bp=bp->next)
+		if (!bp->address)
+			return 0;
+
+	return 1;
 }
 
 static void add_watchpoint(trace_t *t, int bpid, breakpoint_t *bp)
@@ -353,7 +368,7 @@ static void wrap_exec(trace_t *t, void *data)
 {
 	update_breakpoints_on_exec(t);
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->step) plug->exec(t, plug->data);
+	if (plug->exec) plug->exec(t, plug->data);
 }
 
 static void wrap_breakpoint(trace_t *t, void *data)

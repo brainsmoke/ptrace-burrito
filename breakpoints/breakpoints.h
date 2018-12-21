@@ -33,6 +33,8 @@ void try_activate_breakpoints(trace_t *t);
 
 int current_breakpoint_id(trace_t *t);
 
+int all_breakpoints_resolved(trace_t *t);
+
 /* in plug->start() */
 void update_breakpoints_on_fork(trace_t *parent, trace_t *child);
 
