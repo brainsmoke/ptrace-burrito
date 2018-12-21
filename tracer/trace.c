@@ -104,6 +104,29 @@ void detach_all(void)
 	free(list);
 }
 
+/* Don't leave any breakpoints / trap flags in the patient */
+void detach_atexit(void)
+{
+	size_t size, i;
+	if ( trace_map )
+	{
+		trace_t **list = trace_list(trace_map, &size);
+		for (i=0; i<size; i++)
+		{
+			trace_t *t = list[i];
+
+			ptrace(PTRACE_INTERRUPT, t->pid, 0, 0);
+			t->status = 0;
+			waitpid(t->pid, &t->status, __WALL);
+			steptrace_process(t, 0);
+			debug_reg_clear_breakpoints(t);
+			t->signal = (t->status>>8) & 0xff;
+			ptrace(PTRACE_DETACH, t->pid, 0, t->signal);
+		}
+		free(list);
+	}
+}
+
 static void detach_cleanup(trace_t *t)
 {
 	if (t->flags & STEPTRACE)
@@ -198,6 +221,7 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 {
 	int status, event, is_trap;
 	trace_map = create_trace_map();
+	atexit(detach_atexit);
 
 	waitpid(pid, &status, __WALL);
 	trace_t *t = new_trace(pid, status), *parent = NULL;
@@ -302,7 +326,8 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 	if (plug->final)
 		plug->final(plug->data);
 
-	free_trace_map(trace_map);
+	trace_map_t *tmp = trace_map;
 	trace_map = NULL;
+	free_trace_map(tmp);
 }
 
