@@ -69,6 +69,8 @@ void release_process(trace_t *t);
 void steptrace_process(trace_t *t, int val);
 int get_steptrace_process(trace_t *t);
 
+void trace_syscalls(trace_t *t, int val);
+
 void detach_process(trace_t *t);
 void detach_all(void);
 

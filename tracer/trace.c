@@ -29,6 +29,7 @@ enum
 	HELD      = 0x02,
 	STEPTRACE = 0x04,
 	DETACH    = 0x08,
+	NOSYSCALL = 0x10,
 };
 
 static trace_t *new_trace(pid_t pid, int status)
@@ -67,7 +68,8 @@ static void try_continue_process(trace_t *t)
 		t->flags |= HELD;
 	else
 	{
-		if (ptrace(PTRACE_SYSCALL, t->pid, 0, t->signal) != 0)
+		int cont = ( t->flags & NOSYSCALL ) ? PTRACE_CONT : PTRACE_SYSCALL;
+		if (ptrace(cont, t->pid, 0, t->signal) != 0)
 			fatal_error("ptrace failed: %s", strerror(errno));
 
 		t->flags &=~ HELD;
@@ -155,6 +157,14 @@ void steptrace_process(trace_t *t, int val)
 	set_trap_flag(t, val?1:0);
 	set_registers(t);
 	t->regs = orig;
+}
+
+void trace_syscalls(trace_t *t, int val)
+{
+	if (!val)
+		t->flags |= NOSYSCALL;
+	else
+		t->flags &=~ NOSYSCALL;
 }
 
 int get_steptrace_process(trace_t *t)
