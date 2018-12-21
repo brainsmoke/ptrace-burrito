@@ -47,7 +47,8 @@ TARGETS=$(TEST_TARGETS)\
 	examples/breakpoints/trace_func\
 	examples/breakpoints/codecov_func\
 	examples/breakpoints/callee\
-	examples/syscalls/printregs
+	examples/syscalls/printregs\
+	examples/mallocfree/mallocfree
 
 TRACER_OBJECTS=\
 	tracer/dataset.o\
@@ -71,7 +72,10 @@ MAPS_OBJECTS=\
 BREAKPOINTS_OBJECTS=\
 	breakpoints/breakpoints.o
 
-OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS)
+GHETTOSYM_OBJECTS=\
+	ghettosym/symbols.o
+
+OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
 
 CLEAN=$(TARGETS) $(OBJECTS)
 
@@ -95,6 +99,9 @@ maps/%.o: maps/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
 breakpoints/%.o: breakpoints/%.c
+	$(CC) $(CFLAGS) -Isyscalls -Itracer -Imaps -c -o $@ $<
+
+ghettosym/%.o: ghettosym/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -Imaps -c -o $@ $<
 
 
@@ -127,6 +134,13 @@ examples/breakpoints/%.o: examples/breakpoints/%.c
 
 examples/breakpoints/%: examples/breakpoints/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+examples/mallocfree/%.o: examples/mallocfree/%.c
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
+
+examples/mallocfree/%: examples/mallocfree/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
 

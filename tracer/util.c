@@ -337,6 +337,11 @@ void set_syscall(trace_t *t, unsigned long val)
 	t->regs.orig_eax = val;
 }
 
+unsigned long get_func_result(trace_t *t)
+{
+	return t->regs.eax;
+}
+
 unsigned long get_result(trace_t *t)
 {
 	return t->regs.eax;
@@ -468,6 +473,11 @@ unsigned long get_result(trace_t *t)
 	return t->regs.rax;
 }
 
+unsigned long get_func_result(trace_t *t)
+{
+	return t->regs.rax;
+}
+
 void set_result(trace_t *t, unsigned long val)
 {
 	t->regs.rax = val;
@@ -515,6 +525,29 @@ void set_syscall_arg(trace_t *t, int number, unsigned long val)
 			fatal_error("wrong argument number");
 	}
 }
+
+unsigned long get_func_arg(trace_t *t, int number)
+{
+	switch (number)
+	{
+		case 0:
+			return t->regs.rdi;
+		case 1:
+			return t->regs.rsi;
+		case 2:
+			return t->regs.rdx;
+		case 3:
+			return t->regs.rcx;
+		case 4:
+			return t->regs.r8;
+		case 5:
+			return t->regs.r9;
+		default:
+			fatal_error("wrong argument number");
+			return -1; /* not used */
+	}
+}
+
 
 int get_trap_flag(trace_t *t)
 {

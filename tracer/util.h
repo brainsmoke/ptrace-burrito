@@ -67,6 +67,10 @@ void set_syscall_arg(trace_t *t, int number, unsigned long val);
 void get_syscall_args(trace_t *t, long *args, int argc);
 void set_syscall_args(trace_t *t, long *args, int argc);
 
+
+unsigned long get_func_arg(trace_t *t, int number);
+unsigned long get_func_result(trace_t *t);
+
 unsigned long get_result(trace_t *t);
 void set_result(trace_t *t, unsigned long val);
 
