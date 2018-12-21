@@ -100,7 +100,7 @@ static void print_step(trace_t *t, void *data)
 static void print_exec(trace_t *t, void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->step) plug->step(t, plug->data);
+	if (plug->exec) plug->exec(t, plug->data);
 	fprintf(stderr, "%sEXEC%s\n", hi, n);
 	fflush(stderr);
 }
