@@ -371,6 +371,12 @@ static void wrap_exec(trace_t *t, void *data)
 	if (plug->exec) plug->exec(t, plug->data);
 }
 
+static void wrap_detach(trace_t *t, void *data)
+{
+	tracer_plugin_t *plug = (tracer_plugin_t *)data;
+	if (plug->detach) plug->detach(t, plug->data);
+}
+
 static void wrap_breakpoint(trace_t *t, void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
@@ -388,6 +394,7 @@ tracer_plugin_t breakpoint_wrap(tracer_plugin_t *plug)
 		.stop = wrap_stop,
 		.step = wrap_step,
 		.exec = wrap_exec,
+		.detach = wrap_detach,
 		.breakpoint = wrap_breakpoint,
 		.pid_selector = wrap_pid_selector,
 		.data = (void *)plug,

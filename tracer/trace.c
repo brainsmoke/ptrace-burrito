@@ -139,7 +139,6 @@ static void detach_cleanup(trace_t *t)
 
 	if (ptrace(PTRACE_DETACH, t->pid, 0, t->signal) != 0)
 		fatal_error("ptrace failed: %s", strerror(errno));
-	del_trace(trace_map, t->pid);
 }
 
 void steptrace_process(trace_t *t, int val)
@@ -211,6 +210,10 @@ static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
 			if ( plug->breakpoint )
 				plug->breakpoint(t, plug->data);
 			break;
+		case DETACH:
+			if ( plug->detach )
+				plug->detach(t, plug->data);
+			break;
 		case SIGNAL:
 			if ( plug->signal )
 				plug->signal(t, plug->data);
@@ -248,7 +251,14 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 
 		handle_event(t, parent, plug);
 
-		try_continue_process(t);
+		if (t->state == DETACH)
+		{
+			detach_cleanup(t);
+			del_trace(trace_map, t->pid);
+		}
+		else
+			try_continue_process(t);
+
 		if (parent)
 		{
 			try_continue_process(parent);
@@ -259,8 +269,6 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		{
 			waitpid(t->pid, NULL, __WALL);
 			del_trace(trace_map, t->pid);
-			if ( trace_map_count(trace_map) == 0 )
-				break;
 		}
 
 		if ( trace_map_count(trace_map) == 0 )
@@ -282,8 +290,6 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 
 			if (t == NULL)
 				put_trace(trace_map, new_trace(pid, status));
-			else if (t->flags & DETACH)
-				detach_cleanup(t);
 			else
 				break;
 		}
@@ -312,6 +318,13 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		{
 			t->state = EXEC;
 			init_debug_regs(t);
+		}
+		else if (event == PTRACE_EVENT_STOP) /* at this point, it must've come from PTRACE_INTERRUPT */
+		{
+			if ( !(t->flags & DETACH) )
+				fatal_error("unexpected behaviour: process in unexpected stop state");
+
+			t->state = DETACH;
 		}
 		else if (event)
 		{

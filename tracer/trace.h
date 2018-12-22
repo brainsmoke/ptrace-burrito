@@ -46,7 +46,7 @@ typedef struct tracer_plugin_s
 {
 	pidselector_t pid_selector;
 	starthandler_t start;
-	traphandler_t stop, pre_call, post_call, signal, exec, step, breakpoint;
+	traphandler_t stop, pre_call, post_call, signal, exec, step, breakpoint, detach;
 	datahandler_t init, final;
 	void *data; /* passed on to callback functions as argument */
 
