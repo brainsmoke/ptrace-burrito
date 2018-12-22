@@ -105,15 +105,8 @@ enum
 
 void init_debug_regs(trace_t *t)
 {
-	long dr7 = read_debugreg(t, 7);
-	t->debug_regs.dr[7] = dr7;
-
-	int i;
-	for (i=0; i<MAX_BREAKPOINTS; i++)
-		t->debug_regs.dr[i] = read_debugreg(t, i);
-
-	t->debug_regs.dr[6] = 0;
 	write_debugreg(t, 6, 0);
+	write_debugreg(t, 7, 0);
 }
 
 int debug_reg_breakpoints_triggered(trace_t *t)
