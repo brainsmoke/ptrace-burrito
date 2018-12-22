@@ -99,6 +99,16 @@ static void plug_breakpoint(trace_t *t, void *data)
 		fprintf(outfile, "%5d: BREAKPOINT UNKNOWN!\n",t->pid);
 }
 
+/*  */
+static void plug_detach(trace_t *t, void *data)
+{
+	if (next == t->pid)
+	{
+		next = -1;
+		fprintf(outfile, "<process detached during malloc>\n", get_func_result(t));
+	}
+}
+
 void sigterm(int sig)
 {
 	detach_all();
@@ -185,6 +195,7 @@ int main(int argc, char **argv)
 		.post_call = plug_post_call,
 		.start = plug_start,
 		.exec = plug_exec,
+		.detach = plug_detach,
 		.breakpoint = plug_breakpoint,
 		.data = NULL,
 	};
