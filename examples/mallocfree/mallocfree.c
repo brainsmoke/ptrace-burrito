@@ -105,7 +105,7 @@ static void plug_detach(trace_t *t, void *data)
 	if (next == t->pid)
 	{
 		next = -1;
-		fprintf(outfile, "<process detached during malloc>\n", get_func_result(t));
+		fprintf(outfile, "<process detached during malloc>\n");
 	}
 }
 
