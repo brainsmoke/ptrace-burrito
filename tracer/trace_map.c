@@ -147,7 +147,7 @@ void del_trace(trace_map_t *map, pid_t pid)
 
 static int cmp_trace_by_pid(const void *a, const void *b)
 {
-	return ((trace_t*)a)->pid - ((trace_t*)b)->pid;
+	return (*(trace_t**)a)->pid - (*(trace_t**)b)->pid;
 }
 
 trace_t **trace_list(trace_map_t *map, size_t *size)
