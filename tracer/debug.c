@@ -14,6 +14,11 @@
 
 static FILE *out = NULL;
 
+static inline long min(long a, long b) { return a<b ? a:b; }
+static inline long max(long a, long b) { return a>b ? a:b; }
+
+static const char *hi = "\033[0;34m",/* *color = "\033[0;31m",*/ *reset = "\033[m";
+
 void debug_init(FILE *outfile)
 {
 	out = outfile;
@@ -24,19 +29,29 @@ FILE *debug_out(void)
 	return out;
 }
 
-#ifdef __i386__
-
-const char *trace_desc[] =
+static const char *trace_state_desc [] =
 {
-	"    [   ebx   ] [   ecx   ]    [   edx   ] [   esi   ]",
-	"    [   edi   ] [   ebp   ]    [   eax   ] [ ds] [_ds]",
-	"    [ es] [_es] [ fs] [_fs]    [ gs] [_gs] [ orig eax]",
-	"    [   eip   ] [ cs] [_cs]    [  eflags ] [   esp   ]",
-	"    [ ss] [_ss] [drtystate]    st sg ex fl [   pid   ]",
-	"    [  status ] [ syscall ]    [   dr0   ] [   dr1   ]",
-	"    [   dr2   ] [   dr3   ]    [   ???   ] [   ???   ]",
-	"    [   dr6   ] [   dr7   ]    [  *data  ]",
+	[START]      = "START",
+	[STOP]       = "STOP",
+	[PRE_CALL]   = "PRE_CALL",
+	[POST_CALL]  = "POST_CALL",
+	[SIGNAL]     = "SIGNAL",
+	[EXEC]       = "EXEC",
+	[STEP]       = "STEP",
+	[BREAKPOINT] = "BREAKPOINT",
+	[DETACH]     = "DETACH",
 };
+#define TRACE_STATE_MAX (sizeof(trace_state_desc)/sizeof(trace_state_desc[0]))
+
+const char *trace_state_name(int state)
+{
+	if ( (state < TRACE_STATE_MAX) && trace_state_desc[state] )
+		return trace_state_desc[state];
+	else
+		return "\033[0;34m[BAD STATE]\033[m";
+}
+
+#ifdef __i386__
 
 const char *registers_desc[] =
 {
@@ -47,34 +62,16 @@ const char *registers_desc[] =
 	"    [ ss] [_ss]",
 };
 
+const char *debug_registers_desc[] =
+{
+	"    [   dr0   ] [   dr1   ]    [   dr2   ] [   dr3   ]",
+	"    [   ???   ] [   ???   ]    [   dr6   ] [   dr7   ]",
+};
+
 #endif
 
 #ifdef __x86_64__
 //#error structure has changed, needs to be retested
-
-const char *trace_desc[] =
-{
-	"    [         r15         ]    [         r14         ]",
-	"    [         r13         ]    [         r12         ]",
-	"    [         rbp         ]    [         rbx         ]",
-	"    [         r11         ]    [         r10         ]",
-	"    [         r9          ]    [         r8          ]",
-	"    [         rax         ]    [         rcx         ]",
-	"    [         rdx         ]    [         rsi         ]",
-	"    [         rdi         ]    [       orig_rax      ]",
-	"    [         rip         ]    [          cs         ]",
-	"    [        eflags       ]    [         rsp         ]",
-	"    [          ss         ]    [       fs_base       ]",
-	"    [        gs_base      ]    [          ds         ]",
-	"    [          es         ]    [          fs         ]",
-	"    [          gs         ]    [drtystate] st sg ex fl",
-	"    [   pid   ] [  status ]    [        syscall      ]",
-	"    [         dr0         ]    [         dr1         ]",
-	"    [         dr2         ]    [         dr3         ]",
-	"    [         ???         ]    [         ???         ]",
-	"    [         dr6         ]    [         dr7         ]",
-	"    [        *data        ]",
-};
 
 const char *registers_desc[] =
 {
@@ -94,12 +91,15 @@ const char *registers_desc[] =
 	"    [          gs         ]",
 };
 
+const char *debug_registers_desc[] =
+{
+	"    [         dr0         ]    [         dr1         ]",
+	"    [         dr2         ]    [         dr3         ]",
+	"    [         ???         ]    [         ???         ]",
+	"    [         dr6         ]    [         dr7         ]",
+};
+
 #endif
-
-static inline long min(long a, long b) { return a<b ? a:b; }
-static inline long max(long a, long b) { return a>b ? a:b; }
-
-static const char *hi = "\033[0;34m",/* *color = "\033[0;31m",*/ *reset = "\033[m";
 
 /* Prints up to 16 characters in hexdump style with optional colors
  * if `ascii' is non-zero, an additional ascii representation is printed
@@ -224,23 +224,6 @@ void printhex_diff(const void *data1, ssize_t len1,
 	printhex_diff_descr(data1, len1, data2, len2, grane, 1, NULL);
 }
 
-void print_trace(trace_t *t)
-{
-	printhex_descr(t, sizeof(trace_t), 0, trace_desc);
-}
-
-void print_trace_diff(trace_t *new, trace_t *old)
-{
-	printhex_diff_descr(new, sizeof(trace_t),
-	                    old, sizeof(trace_t), sizeof(long), 0, trace_desc);
-}
-
-void print_trace_if_diff(trace_t *new, trace_t *old)
-{
-	if ( bcmp(&new->regs, &old->regs, sizeof(registers_t)) != 0 )
-		print_trace_diff(new, old);
-}
-
 void print_registers(registers_t *regs)
 {
 	printhex_descr(regs, sizeof(registers_t), 0, registers_desc);
@@ -257,6 +240,45 @@ void print_registers_if_diff(registers_t *new, registers_t *old)
 	if ( bcmp(new, old, sizeof(registers_t)) != 0 )
 		print_registers_diff(new, old);
 }
+
+void print_trace(trace_t *t)
+{
+	fprintf(out, "\033[1mTRACE (%d)%s\n", t->pid, reset);
+
+	fprintf(out, "  registers:\n");
+	if ( bcmp(&t->regs, &t->orig, sizeof(registers_t)) != 0 )
+		print_registers_diff(&t->regs, &t->orig);
+	else
+		print_registers(&t->regs);
+
+	fprintf(out, "  debug registers:\n");
+
+	if ( bcmp(&t->debug_regs, &t->debug_orig, sizeof(debug_registers_t)) != 0 )
+		printhex_diff_descr(&t->debug_regs, sizeof(debug_registers_t),
+		                    &t->debug_orig, sizeof(debug_registers_t), sizeof(long), 0, debug_registers_desc);
+	else
+		printhex_descr(&t->debug_regs, sizeof(debug_registers_t), 0, debug_registers_desc);
+
+	fprintf(out, "  state: %s\n", trace_state_name(t->state));
+	fprintf(out, "  signal: %d\n", t->signal);
+	fprintf(out, "  exitcode: %d\n", t->exitcode);
+	fprintf(out, "  status: %08x\n", t->status);
+	fprintf(out, "  event: %08x\n", t->event);
+	fprintf(out, "  (void*)data: %p\n", t->data);
+}
+
+void print_trace_diff(trace_t *new, trace_t *old)
+{
+	printhex_diff_descr(new, sizeof(trace_t),
+	                    old, sizeof(trace_t), sizeof(long), 0, NULL);
+}
+
+void print_trace_if_diff(trace_t *new, trace_t *old)
+{
+	if ( bcmp(&new->regs, &old->regs, sizeof(registers_t)) != 0 )
+		print_trace_diff(new, old);
+}
+
 
 #ifdef __i386__
 

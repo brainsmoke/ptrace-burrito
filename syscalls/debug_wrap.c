@@ -29,7 +29,6 @@ static void print_pre_call(trace_t *t, void *data)
 
 	//const syscall_info_t *info = syscall_info(t);
 	fprintf(stderr, "%5d  ", t->pid);
-	set_syscall(t, t->syscall);
 	//print_flags(info->action);
 	print_trace_call(t);
 	fflush(stderr);
@@ -77,7 +76,7 @@ static void print_start(trace_t *t, trace_t *parent, void *data)
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
 	if (plug->start) plug->start(t, parent, plug->data);
 	fprintf(stderr, "%5d  ", t->pid);
-	fprintf(stderr, "%sSTART%s %s\n", hi, n, syscall_name(t->syscall));
+	fprintf(stderr, "%sSTART%s %s\n", hi, n, syscall_name(get_syscall(t)));
 	fflush(stderr);
 }
 

@@ -15,13 +15,11 @@ enum { START, STOP, PRE_CALL, POST_CALL, SIGNAL, EXEC, STEP, BREAKPOINT, DETACH 
 
 typedef struct
 {
-	registers_t regs;
-	int dirty_state;
-	unsigned char state, signal, exitcode, flags;
+	registers_t regs, orig;
+	debug_registers_t debug_regs, debug_orig;
+	unsigned char state, signal, exitcode, event;
 	pid_t pid;
-	int status;
-	long syscall;
-	debug_registers_t debug_regs;
+	int status, flags;
 	void *data; /* free to be used by tracer plugin */
 
 } trace_t;

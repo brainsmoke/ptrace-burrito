@@ -42,6 +42,7 @@ void get_registers(trace_t *t)
 {
 	if ( ptrace(PTRACE_GETREGS, t->pid, 0, &t->regs) < 0 )
 		fatal_error("error: getting registers failed for process %d", t->pid);
+	t->orig = t->regs;
 }
 
 void set_registers(trace_t *t)
@@ -64,20 +65,41 @@ void set_siginfo(pid_t pid, siginfo_t *info)
 
 #if defined(__i386__) || defined(__x86_64__)
 
-static long read_debugreg(trace_t *t, int index)
+static void read_debugreg(trace_t *t, int index)
 {
-	return ptrace(PTRACE_PEEKUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), 0);
+	t->debug_regs.dr[index] =
+	t->debug_orig.dr[index] =
+	ptrace(PTRACE_PEEKUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), 0);
 }
 
-static long write_debugreg(trace_t *t, int index, long value)
+static void write_debugreg(trace_t *t, int index)
 {
-	return ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), value);
+	ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), t->debug_regs.dr[index]);
+	t->debug_orig.dr[index] = t->debug_regs.dr[index];
 }
 
 int debug_reg_breakpoints_enabled(trace_t *t)
 {
 	return (t->debug_regs.dr[7] & 0xff);
 }
+
+void write_modified_regs(trace_t *t)
+{
+	if (bcmp(&t->regs, &t->orig, sizeof(t->regs)) != 0)
+		set_registers(t);
+
+	if (t->debug_regs.dr[6] != t->debug_orig.dr[7])
+		write_debugreg(t, 6);
+
+	if (t->debug_regs.dr[7] != t->debug_orig.dr[7])
+		write_debugreg(t, 7);
+
+	int i;
+	for (i=0; i<MAX_BREAKPOINTS; i++)
+		if (t->debug_regs.dr[i] != t->debug_orig.dr[i])
+			write_debugreg(t, i);
+}
+
 
 enum
 {
@@ -98,19 +120,29 @@ enum
 
 #define DR7_MASK(i) (~( (3<<DR7_ENABLE_FIELD_SHIFT(i)) | (0xf<<((i)*4+16)) ))
 
-void clear_debug_regs(trace_t *t)
+void init_debug_regs(trace_t *t)
 {
 	int i;
 	for (i=0; i<MAX_BREAKPOINTS; i++)
 	{
 		t->debug_regs.dr[i] = 0;
-		write_debugreg(t, i, 0);
+		write_debugreg(t, i);
 	}
 
 	t->debug_regs.dr[6] = 0;
-	write_debugreg(t, 6, 0);
+	write_debugreg(t, 6);
 	t->debug_regs.dr[7] = 0;
-	write_debugreg(t, 7, 0);
+	write_debugreg(t, 7);
+}
+
+void clear_debug_regs(trace_t *t)
+{
+	int i;
+	for (i=0; i<MAX_BREAKPOINTS; i++)
+		t->debug_regs.dr[i] = 0;
+
+	t->debug_regs.dr[6] = 0;
+	t->debug_regs.dr[7] = 0;
 }
 
 int debug_reg_breakpoints_triggered(trace_t *t)
@@ -118,16 +150,16 @@ int debug_reg_breakpoints_triggered(trace_t *t)
 	if ( !debug_reg_breakpoints_enabled(t) )
 		return 0;
 
-	long dr6 = read_debugreg(t, 6);
-	t->debug_regs.dr[6] = dr6;
-	if (dr6)
-		write_debugreg(t, 6, 0);
+	read_debugreg(t, 6);
+
+	long dr6 = t->debug_regs.dr[6];
+	t->debug_regs.dr[6] = 0;
 	return dr6 & 0xf;
 }
 
 int debug_reg_current_breakpoint(trace_t *t)
 {
-	long dr6 = t->debug_regs.dr[6];
+	long dr6 = t->debug_orig.dr[6];
 	int i;
 
 	if (dr6)
@@ -239,14 +271,7 @@ int debug_reg_set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
 	t->debug_regs.dr[7] |= 1 << DR7_ENABLE_FIELD_SHIFT(index);
 	t->debug_regs.dr[7] |= type << DR7_TYPE_FIELD_SHIFT(index);
 	t->debug_regs.dr[7] |= len_field << DR7_LEN_FIELD_SHIFT(index);
-
-	write_debugreg(t, 7, t->debug_regs.dr[7]);
-	if ( t->debug_regs.dr[index] != address)
-	{
-		t->debug_regs.dr[index] = address;
-		write_debugreg(t, index, t->debug_regs.dr[index]);
-	}
-
+	t->debug_regs.dr[index] = address;
 
 	return index;
 }
@@ -278,8 +303,6 @@ int debug_reg_unset_breakpoint(trace_t *t, int index)
 		return -1;
 
 	t->debug_regs.dr[7] &= DR7_MASK(index);
-	write_debugreg(t, 7, t->debug_regs.dr[7]);
-
 	return 0;
 }
 
