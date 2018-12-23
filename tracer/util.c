@@ -105,7 +105,16 @@ enum
 
 void init_debug_regs(trace_t *t)
 {
+	int i;
+	for (i=0; i<MAX_BREAKPOINTS; i++)
+	{
+		t->debug_regs.dr[i] = 0;
+		write_debugreg(t, i, 0);
+	}
+
+	t->debug_regs.dr[6] = 0;
 	write_debugreg(t, 6, 0);
+	t->debug_regs.dr[7] = 0;
 	write_debugreg(t, 7, 0);
 }
 
@@ -145,11 +154,18 @@ static int valid_breakpoint(trace_t *t, int index)
 	return 1;
 }
 
-static int get_free_debugreg(trace_t *t)
+/* prefer slot which already have the correct address, prefer 0 addresses otherwise */
+static int get_free_debugreg(trace_t *t, uintptr_t for_address)
 {
 	long dr7 = t->debug_regs.dr[7];
 
 	int i;
+
+	for (i=0; i<MAX_BREAKPOINTS; i++)
+		if ( ! DR7_BREAKPOINT_ENABLED(dr7, i) )
+			if (t->debug_regs.dr[i] == for_address)
+				return i;
+
 	for (i=0; i<MAX_BREAKPOINTS; i++)
 		if ( ! DR7_BREAKPOINT_ENABLED(dr7, i) )
 			return i;
@@ -212,7 +228,7 @@ static int get_breakpoint_size(int len_field)
 
 int debug_reg_set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
 {
-	int index = get_free_debugreg(t);
+	int index = get_free_debugreg(t, address);
 	if ( index < 0 )
 		return index;
 
@@ -224,13 +240,18 @@ int debug_reg_set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
 	if ( len_field < 0 )
 		return len_field;
 
-	t->debug_regs.dr[index] = address;
 	t->debug_regs.dr[7] &= DR7_MASK(index);
 	t->debug_regs.dr[7] |= 1 << DR7_ENABLE_FIELD_SHIFT(index);
 	t->debug_regs.dr[7] |= type << DR7_TYPE_FIELD_SHIFT(index);
 	t->debug_regs.dr[7] |= len_field << DR7_LEN_FIELD_SHIFT(index);
-	write_debugreg(t, index, t->debug_regs.dr[index]);
+
 	write_debugreg(t, 7, t->debug_regs.dr[7]);
+	if ( t->debug_regs.dr[index] != address)
+	{
+		t->debug_regs.dr[index] = address;
+		write_debugreg(t, index, t->debug_regs.dr[index]);
+	}
+
 
 	return index;
 }
@@ -264,8 +285,6 @@ int debug_reg_unset_breakpoint(trace_t *t, int index)
 	t->debug_regs.dr[7] &= DR7_MASK(index);
 	write_debugreg(t, 7, t->debug_regs.dr[7]);
 
-	t->debug_regs.dr[index] = 0;
-	write_debugreg(t, index, t->debug_regs.dr[index]);
 	return 0;
 }
 
