@@ -16,8 +16,6 @@
 #include "trace_map.h"
 #include "util.h"
 
-#include "debug.h"
-
 static trace_map_t *trace_map = NULL;
 
 pid_t any_pid(void *data)
@@ -34,24 +32,13 @@ enum
 	NOSYSCALL = 0x10,
 };
 
-static trace_t *new_trace(pid_t pid, int status)
+static trace_t *new_trace(pid_t pid)
 {
 	trace_t *t = try_malloc(sizeof(trace_t));
-	*t = (trace_t)
-	{
-		.pid = pid,
-		.state = START,
-		.flags = 0,
-		.signal = 0,
-		.status = status,
-		.signal = (status>>8) & 0xff,
-		.event = (status>>16) & 0xff,
-	};
+
+	*t = (trace_t) { .pid = pid, };
 
 	init_debug_regs(t);
-
-	if ( WIFEXITED(t->status) || WIFSIGNALED(t->status) )
-		abort();
 
 	if (ptrace(PTRACE_SETOPTIONS, pid, -1,
 	           PTRACE_O_TRACEFORK |
@@ -131,7 +118,8 @@ void detach_all(void)
 	free(list);
 }
 
-/* Don't leave any breakpoints / trap flags in the patient */
+/* Failsafe in case of a fatal_error()
+ * Don't leave any breakpoints / trap flags in the patient */
 void detach_atexit(void)
 {
 	size_t size, i;
@@ -236,10 +224,11 @@ static trace_t *wait_for_event(pid_t pid_select)
 {
 	int status;
 	pid_t pid;
-	trace_t *t = NULL;
+	trace_t *t, *t_ok = NULL;
 
-	while (!t)
+	while (!t_ok)
 	{
+		/* we may get a pid we don't know about yet */
 		pid = waitpid(pid_select, &status, __WALL);
 
 		if (pid < 0)
@@ -248,60 +237,58 @@ static trace_t *wait_for_event(pid_t pid_select)
 		if ( WIFEXITED(status) || WIFSIGNALED(status) || !WIFSTOPPED(status) )
 			fatal_error("unexpected behaviour: process in unexpected state");
 
+		/* unknown pid will return NULL */
 		t = get_trace(trace_map, pid);
 
-		if (t == NULL)
-			put_trace(trace_map, new_trace(pid, status));
-	}
+		/* always return known processes */
+		t_ok = t;
 
-	t->status = status;
-	t->signal = (status>>8) & 0xff;
-	t->event = (status>>16) & 0xff;
+		if (t == NULL)
+		{
+			t = new_trace(pid);
+			put_trace(trace_map, t);
+
+			/* only return new processes if we explicitly wait for them */
+			if ( pid == pid_select )
+				t_ok = t;
+		}
+
+		/* fill in correct info regardless */
+		t->status = status;
+		t->signal = (status>>8) & 0xff;
+		t->event = (status>>16) & 0xff;
+		get_process_info(t);
+	}
 
 	return t;
 }
 
 void trace(pid_t pid, tracer_plugin_t *plug)
 {
-	int status, is_trap;
+	int is_trap;
 	trace_map = create_trace_map();
-	atexit(detach_atexit);
+	trace_t *t, *parent = NULL;
+	pid_t new_pid = pid;
 
-	waitpid(pid, &status, __WALL);
-	trace_t *t = new_trace(pid, status), *parent = NULL;
-	put_trace(trace_map, t);
-	get_process_info(t);
+	atexit(detach_atexit);
 
 	if (plug->init)
 		plug->init(plug->data);
 
-	for(;;)
+	while ( new_pid || trace_map_count(trace_map) > 0 )
 	{
-		handle_event(t, parent, plug);
-
-		try_continue_process(t);
-
-		if (parent)
-		{
-			try_continue_process(parent);
-			parent = NULL;
-		}
-
-		if ( (t->state == STOP) || (t->state == DETACH) )
-			del_trace(trace_map, t->pid);
-
-		if ( trace_map_count(trace_map) == 0 )
-			break;
-
-		t = wait_for_event( plug->pid_selector(plug->data) );
-		get_process_info(t);
+		t = wait_for_event( new_pid ? new_pid : plug->pid_selector(plug->data) );
 
 		is_trap = !t->event && t->signal == SIGTRAP;
-
 		if ( ( t->signal == SIGTRAP ) || ( t->signal == CALL_SIGTRAP ) )
 			t->signal = 0;
 
-		if (is_trap)
+		if ( new_pid )
+		{
+			t->state = START;
+			new_pid = 0;
+		}
+		else if (is_trap)
 		{
 			if ( debug_reg_breakpoints_triggered(t) )
 				t->state = BREAKPOINT;
@@ -326,18 +313,17 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 			t->state = DETACH;
 			detach_cleanup(t);
 		}
-		else if (t->event)
+		else if (t->event) /* clone()/fork()/vfork() */
 		{
 			parent = t;
-			pid = (pid_t)get_eventmsg(parent);
-			t = get_trace(trace_map, pid);
-			if (t == NULL)
-			{
-				waitpid(pid, &status, __WALL);
-				t = new_trace(pid, status);
-				put_trace(trace_map, t);
-			}
-			get_process_info(t);
+			new_pid = (pid_t)get_eventmsg(parent);
+
+			t = get_trace(trace_map, new_pid);
+			if (!t)
+				continue;
+
+			t->state = START;
+			new_pid = 0;
 		}
 		else if ( t->signal )
 			t->state = SIGNAL;
@@ -345,6 +331,19 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 			t->state = POST_CALL;
 		else
 			t->state = PRE_CALL;
+
+		handle_event(t, parent, plug);
+
+		try_continue_process(t);
+
+		if (parent)
+		{
+			try_continue_process(parent);
+			parent = NULL;
+		}
+
+		if ( (t->state == STOP) || (t->state == DETACH) )
+			del_trace(trace_map, t->pid);
 	}
 
 	if (plug->final)
