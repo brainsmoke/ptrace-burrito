@@ -184,42 +184,15 @@ static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
 {
 	switch (t->state)
 	{
-		case START:
-			if ( plug->start )
-				plug->start(t, parent, plug->data);
-			break;
-		case STOP:
-			if ( plug->stop )
-				plug->stop(t, plug->data);
-			break;
-		case EXEC:
-			if ( plug->exec )
-				plug->exec(t, plug->data);
-			break;
-		case STEP:
-			if ( plug->step )
-				plug->step(t, plug->data);
-			break;
-		case BREAKPOINT:
-			if ( plug->breakpoint )
-				plug->breakpoint(t, plug->data);
-			break;
-		case DETACH:
-			if ( plug->detach )
-				plug->detach(t, plug->data);
-			break;
-		case SIGNAL:
-			if ( plug->signal )
-				plug->signal(t, plug->data);
-			break;
-		case PRE_CALL:
-			if ( plug->pre_call )
-				plug->pre_call(t, plug->data);
-			break;
-		case POST_CALL:
-			if ( plug->post_call )
-				plug->post_call(t, plug->data);
-			break;
+		case START:      if (plug->start)      plug->start(t, parent, plug->data);  break;
+		case STOP:       if (plug->stop)       plug->stop(t, plug->data);           break;
+		case EXEC:       if (plug->exec)       plug->exec(t, plug->data);           break;
+		case STEP:       if (plug->step)       plug->step(t, plug->data);           break;
+		case BREAKPOINT: if (plug->breakpoint) plug->breakpoint(t, plug->data);     break;
+		case DETACH:     if (plug->detach)     plug->detach(t, plug->data);         break;
+		case SIGNAL:     if (plug->signal)     plug->signal(t, plug->data);         break;
+		case PRE_CALL:   if (plug->pre_call)   plug->pre_call(t, plug->data);       break;
+		case POST_CALL:  if (plug->post_call)  plug->post_call(t, plug->data);      break;
 	}
 }
 
