@@ -2,6 +2,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/ptrace.h>
 
 #include <stdio.h>
 #include <ctype.h>
@@ -49,6 +50,31 @@ const char *trace_state_name(int state)
 		return trace_state_desc[state];
 	else
 		return "\033[0;34m[BAD STATE]\033[m";
+}
+
+
+static const char *ptrace_event_desc [] =
+{
+	[0]                       = "<no event>",
+	[PTRACE_EVENT_FORK]       = "PTRACE_EVENT_FORK",
+	[PTRACE_EVENT_VFORK]      = "PTRACE_EVENT_VFORK",
+	[PTRACE_EVENT_CLONE]      = "PTRACE_EVENT_CLONE",
+	[PTRACE_EVENT_EXEC]       = "PTRACE_EVENT_EXEC",
+	[PTRACE_EVENT_VFORK_DONE] = "PTRACE_EVENT_VFORK_DONE",
+	[PTRACE_EVENT_EXIT]       = "PTRACE_EVENT_EXIT",
+	[PTRACE_EVENT_SECCOMP]    = "PTRACE_EVENT_SECCOMP",
+	[PTRACE_EVENT_STOP]       = "PTRACE_EVENT_STOP",
+
+};
+
+#define PTRACE_EVENT_NAME_MAX (sizeof(ptrace_event_desc)/sizeof(ptrace_event_desc[0]))
+
+const char *ptrace_event_name(int event)
+{
+	if ( (event < PTRACE_EVENT_NAME_MAX) && ptrace_event_desc[event] )
+		return ptrace_event_desc[event];
+	else
+		return "\033[0;34m[UNKNOWN EVENT]\033[m";
 }
 
 #ifdef __i386__
@@ -229,10 +255,21 @@ void print_registers(registers_t *regs)
 	printhex_descr(regs, sizeof(registers_t), 0, registers_desc);
 }
 
+void print_debug_registers(debug_registers_t *regs)
+{
+	printhex_descr(regs, sizeof(debug_registers_t), 0, debug_registers_desc);
+}
+
 void print_registers_diff(registers_t *new, registers_t *old)
 {
 	printhex_diff_descr(new, sizeof(registers_t),
 	                    old, sizeof(registers_t), sizeof(long), 0, registers_desc);
+}
+
+void print_debug_registers_diff(debug_registers_t *new, debug_registers_t *old)
+{
+	printhex_diff_descr(new, sizeof(debug_registers_t),
+	                    old, sizeof(debug_registers_t), sizeof(long), 0, debug_registers_desc);
 }
 
 void print_registers_if_diff(registers_t *new, registers_t *old)
@@ -254,23 +291,80 @@ void print_trace(trace_t *t)
 	fprintf(out, "  debug registers:\n");
 
 	if ( bcmp(&t->debug_regs, &t->debug_orig, sizeof(debug_registers_t)) != 0 )
-		printhex_diff_descr(&t->debug_regs, sizeof(debug_registers_t),
-		                    &t->debug_orig, sizeof(debug_registers_t), sizeof(long), 0, debug_registers_desc);
+		print_debug_registers_diff(&t->debug_regs, &t->debug_orig);
 	else
-		printhex_descr(&t->debug_regs, sizeof(debug_registers_t), 0, debug_registers_desc);
+		print_debug_registers(&t->debug_regs);
 
 	fprintf(out, "  state: %s\n", trace_state_name(t->state));
 	fprintf(out, "  signal: %d\n", t->signal);
 	fprintf(out, "  exitcode: %d\n", t->exitcode);
 	fprintf(out, "  status: %08x\n", t->status);
-	fprintf(out, "  event: %08x\n", t->event);
+	fprintf(out, "  event: %s\n", ptrace_event_name(t->event));
 	fprintf(out, "  (void*)data: %p\n", t->data);
 }
 
 void print_trace_diff(trace_t *new, trace_t *old)
 {
-	printhex_diff_descr(new, sizeof(trace_t),
-	                    old, sizeof(trace_t), sizeof(long), 0, NULL);
+	if (new->pid == old->pid)
+		fprintf(out, "\033[1mTRACE (%d)%s\n", new->pid, reset);
+	else
+		fprintf(out, "\033[1mTRACE (%d / %d)%s\n", new->pid, old->pid, reset);
+
+
+	fprintf(out, "  registers:\n");
+	if ( (bcmp(&new->regs, &new->orig, sizeof(registers_t)) != 0) ||
+	     (bcmp(&old->regs, &old->orig, sizeof(registers_t)) != 0) )
+	{
+		fprintf(out, "    regs:\n");
+		print_registers_diff(&new->regs, &old->regs);
+		fprintf(out, "    orig:\n");
+		print_registers_diff(&new->orig, &old->orig);
+	}
+	else
+		print_registers_diff(&new->regs, &old->regs);
+
+	fprintf(out, "  debug registers:\n");
+	if ( (bcmp(&new->debug_regs, &new->debug_orig, sizeof(debug_registers_t)) != 0) ||
+	     (bcmp(&old->debug_regs, &old->debug_orig, sizeof(debug_registers_t)) != 0) )
+	{
+		fprintf(out, "    regs:\n");
+		print_debug_registers_diff(&new->debug_regs, &old->debug_regs);
+		fprintf(out, "    orig:\n");
+		print_debug_registers_diff(&new->debug_orig, &old->debug_orig);
+	}
+	else
+		print_debug_registers_diff(&new->debug_regs, &old->debug_regs);
+
+	if (new->state == old->state)
+		fprintf(out, "  state: %s\n", trace_state_name(new->state));
+	else
+		fprintf(out, "  \033[1mstate: %s / %s\033[m\n", trace_state_name(new->state), trace_state_name(old->state));
+
+	if (new->signal == old->signal)
+		fprintf(out, "  signal: %d\n", new->signal);
+	else
+		fprintf(out, "  \033[1msignal: %d / %d\033[m\n", new->signal, old->signal);
+
+	if (new->exitcode == old->exitcode)
+		fprintf(out, "  exitcode: %d\n", new->exitcode);
+	else
+		fprintf(out, "  \033[1mexitcode: %d / %d\033[m\n", new->exitcode, old->exitcode);
+
+	if (new->status == old->status)
+		fprintf(out, "  status: %08x\n", new->status);
+	else
+		fprintf(out, "  \033[1mstatus: %08x / %08x\033[m\n", new->status, old->status);
+
+	if (new->event == old->event)
+		fprintf(out, "  event: %s\n", ptrace_event_name(new->event));
+	else
+		fprintf(out, "  \033[1mevent: %s / %s\033[m\n",
+		        ptrace_event_name(new->event), ptrace_event_name(old->event));
+
+	if (new->data == old->data)
+		fprintf(out, "  (void*)data: %p\n", new->data);
+	else
+		fprintf(out, "  \033[1m(void*)data: %p / %p\033[m\n", new->data, old->data);
 }
 
 void print_trace_if_diff(trace_t *new, trace_t *old)
