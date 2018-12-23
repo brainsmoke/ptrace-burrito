@@ -40,9 +40,9 @@ static void set_breakpoints(trace_t *t)
 
 static void enable_trace(trace_t *t)
 {
+	add_watchpoint_address(t, RET, get_sp(t), PROT_READ|PROT_WRITE, sizeof(uintptr_t), BP_COPY_CHILD);
 	disable_breakpoint(t,MALLOC);
 	disable_breakpoint(t,FREE);
-	add_watchpoint_address(t, RET, get_sp(t), PROT_READ|PROT_WRITE, sizeof(uintptr_t), BP_COPY_CHILD);
 }
 
 static void disable_trace(trace_t *t)

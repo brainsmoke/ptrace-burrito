@@ -108,17 +108,17 @@ enum
     X86_WATCHPOINT_READWRITE = 3,
 };
 
-#define DR6_TRAPPED(dr6, i) ( (dr6) & (1<<(i)) )
+#define DR6_TRAPPED(dr6, i) ( (dr6) & (1UL<<(i)) )
 
 #define DR7_ENABLE_FIELD_SHIFT(i) ((i)*2)
 #define DR7_TYPE_FIELD_SHIFT(i) ((i)*4+16)
 #define DR7_LEN_FIELD_SHIFT(i) ((i)*4+18)
 
 #define DR7_BREAKPOINT_ENABLED(dr7, i) ((dr7) & (3<<DR7_ENABLE_FIELD_SHIFT(i)))
-#define DR7_TYPE_FIELD(dr7, i) (((dr7)>>DR7_TYPE_FIELD_SHIFT(i))&3)
-#define DR7_LEN_FIELD(dr7, i) (((dr7)>>DR7_LEN_FIELD_SHIFT(i))&3)
+#define DR7_TYPE_FIELD(dr7, i) (((dr7)>>DR7_TYPE_FIELD_SHIFT(i))&3UL)
+#define DR7_LEN_FIELD(dr7, i) (((dr7)>>DR7_LEN_FIELD_SHIFT(i))&3UL)
 
-#define DR7_MASK(i) (~( (3<<DR7_ENABLE_FIELD_SHIFT(i)) | (0xf<<((i)*4+16)) ))
+#define DR7_MASK(i) (~( (3UL<<DR7_ENABLE_FIELD_SHIFT(i)) | (0xfUL<<((i)*4+16)) ))
 
 void init_debug_regs(trace_t *t)
 {
@@ -195,6 +195,11 @@ static int get_free_debugreg(trace_t *t, uintptr_t for_address)
 
 	for (i=0; i<MAX_BREAKPOINTS; i++)
 		if ( ! DR7_BREAKPOINT_ENABLED(dr7, i) )
+			if (t->debug_regs.dr[i] == 0)
+				return i;
+
+	for (i=0; i<MAX_BREAKPOINTS; i++)
+		if ( ! DR7_BREAKPOINT_ENABLED(dr7, i) )
 			return i;
 
 	return -1;
@@ -259,11 +264,11 @@ int debug_reg_set_watchpoint(trace_t *t, uintptr_t address, int prot, int size)
 	if ( index < 0 )
 		return index;
 
-	int type = get_breakpoint_type(prot);
+	uintptr_t type = get_breakpoint_type(prot);
 	if ( type < 0 )
 		return type;
 
-	int len_field = get_breakpoint_len_field(size);
+	uintptr_t len_field = get_breakpoint_len_field(size);
 	if ( len_field < 0 )
 		return len_field;
 

@@ -85,10 +85,8 @@ static void try_continue_process(trace_t *t)
 			fatal_error("ptrace failed: %s", strerror(errno));
 
 		if ( t->state == STOP )
-{read(-1, NULL, 0);
-print_trace(t);
 			waitpid(t->pid, NULL, __WALL);
-}
+
 		t->flags &=~ HELD;
 	}
 }
