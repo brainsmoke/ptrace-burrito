@@ -118,8 +118,11 @@ void detach_all(void)
 	free(list);
 }
 
-/* Failsafe in case of a fatal_error()
- * Don't leave any breakpoints / trap flags in the patient */
+/* Don't leave any breakpoints / trap flags in the patient.
+ *
+ * Failsafe in case of a fatal_error(); depend as little as
+ * possible on the rest of the code still functioning.
+ */
 void detach_atexit(void)
 {
 	size_t size, i;
