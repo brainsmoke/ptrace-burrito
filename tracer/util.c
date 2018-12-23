@@ -74,11 +74,6 @@ static long write_debugreg(trace_t *t, int index, long value)
 	return ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[index]), value);
 }
 
-void debug_reg_clear_breakpoints(trace_t *t)
-{
-	ptrace(PTRACE_POKEUSER, t->pid, DEBUGREG_OFFSET + offsetof(debug_registers_t, dr[7]), 0);
-}
-
 int debug_reg_breakpoints_enabled(trace_t *t)
 {
 	return (t->debug_regs.dr[7] & 0xff);
@@ -103,7 +98,7 @@ enum
 
 #define DR7_MASK(i) (~( (3<<DR7_ENABLE_FIELD_SHIFT(i)) | (0xf<<((i)*4+16)) ))
 
-void init_debug_regs(trace_t *t)
+void clear_debug_regs(trace_t *t)
 {
 	int i;
 	for (i=0; i<MAX_BREAKPOINTS; i++)

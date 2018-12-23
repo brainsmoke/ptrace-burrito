@@ -9,14 +9,14 @@
 #define CALL_SIGTRAP (0x85)
 
 /* possible states */
-enum { START, STOP, PRE_CALL, POST_CALL, SIGNAL, EXEC, STEP, BREAKPOINT };
+enum { START, STOP, PRE_CALL, POST_CALL, SIGNAL, EXEC, STEP, BREAKPOINT, DETACH };
 
 /* The per-process datastructure which maintains state during execution */
 
 typedef struct
 {
 	registers_t regs;
-	unsigned char deadbeef[4];
+	int dirty_state;
 	unsigned char state, signal, exitcode, flags;
 	pid_t pid;
 	int status;

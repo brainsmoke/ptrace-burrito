@@ -20,9 +20,7 @@ unsigned long get_eventmsg(trace_t *t);
 void get_registers(trace_t *t);
 void set_registers(trace_t *t);
 
-void init_debug_regs(trace_t *t);
-
-void debug_reg_clear_breakpoints(trace_t *t);
+void clear_debug_regs(trace_t *t);
 
 int debug_reg_breakpoints_enabled(trace_t *t);
 int debug_reg_breakpoints_triggered(trace_t *t);

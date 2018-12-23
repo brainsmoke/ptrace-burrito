@@ -28,7 +28,7 @@ enum
 	HOLD      = 0x01,
 	HELD      = 0x02,
 	STEPTRACE = 0x04,
-	DETACH    = 0x08,
+	RELEASE   = 0x08,
 	NOSYSCALL = 0x10,
 };
 
@@ -41,11 +41,11 @@ static trace_t *new_trace(pid_t pid, int status)
 		.state = START,
 		.flags = 0,
 		.signal = 0,
-		.deadbeef = { 0xDE, 0xAD, 0xBE, 0xAF },
+		.dirty_state = 0,
 		.status = status,
 	};
 
-	init_debug_regs(t);
+	clear_debug_regs(t);
 
 	if ( WIFEXITED(t->status) || WIFSIGNALED(t->status) )
 		abort();
@@ -90,7 +90,7 @@ void release_process(trace_t *t)
 
 void detach_process(trace_t *t)
 {
-	t->flags |= DETACH;
+	t->flags |= RELEASE;
 	errno = 0;
 	long ret = ptrace(PTRACE_INTERRUPT, t->pid, 0, 0);
 	if ( ret && errno != EIO )
@@ -121,7 +121,7 @@ void detach_atexit(void)
 			t->status = 0;
 			waitpid(t->pid, &t->status, __WALL);
 			steptrace_process(t, 0);
-			debug_reg_clear_breakpoints(t);
+			clear_debug_regs(t);
 			t->signal = (t->status>>8) & 0xff;
 			ptrace(PTRACE_DETACH, t->pid, 0, t->signal);
 		}
@@ -134,8 +134,7 @@ static void detach_cleanup(trace_t *t)
 	if (t->flags & STEPTRACE)
 		steptrace_process(t, 0);
 
-	if (debug_reg_breakpoints_enabled(t))
-		debug_reg_clear_breakpoints(t);
+	clear_debug_regs(t);
 
 	if (ptrace(PTRACE_DETACH, t->pid, 0, t->signal) != 0)
 		fatal_error("ptrace failed: %s", strerror(errno));
@@ -317,7 +316,7 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		else if (event == PTRACE_EVENT_EXEC)
 		{
 			t->state = EXEC;
-			init_debug_regs(t);
+			clear_debug_regs(t);
 		}
 		else if (event == PTRACE_EVENT_STOP) /* at this point, it must've come from PTRACE_INTERRUPT */
 		{
