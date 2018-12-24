@@ -64,7 +64,7 @@ void steptrace_process(trace_t *t, int val)
 
 void detach_process(trace_t *t)
 {
-	t->flags |= RELEASE;
+	t->oobflags |= RELEASE;
 	errno = 0;
 	long ret = ptrace(PTRACE_INTERRUPT, t->pid, 0, 0);
 	if ( ret && errno != EIO )
@@ -155,8 +155,7 @@ static void try_continue_process(trace_t *t)
 			cont = PTRACE_DETACH;
 			detach_cleanup(t);
 		}
-
-		if ( t->flags & NOSYSCALL )
+		else if ( t->flags & NOSYSCALL )
 			cont = PTRACE_CONT;
 
 		write_modified_regs(t);
@@ -167,7 +166,8 @@ static void try_continue_process(trace_t *t)
 		if ( t->state == STOP )
 			waitpid(t->pid, NULL, __WALL);
 
-		t->flags &=~ HELD;
+		if (t->flags & HELD)
+			t->flags &=~ HELD;
 	}
 }
 
@@ -286,7 +286,7 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		}
 		else if (t->event == PTRACE_EVENT_STOP) /* at this point, it must've come from PTRACE_INTERRUPT */
 		{
-			if ( !(t->flags & RELEASE) )
+			if ( !(t->oobflags & RELEASE) )
 			{
 				try_continue_process(t);
 				continue;
@@ -321,7 +321,7 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 			parent = NULL;
 		}
 
-		if ( (t->state != DETACH) && (t->flags & RELEASE) )
+		if ( (t->state != DETACH) && (t->oobflags & RELEASE) )
 		{
 			t->state = DETACH;
 			handle_event(t, parent, plug);

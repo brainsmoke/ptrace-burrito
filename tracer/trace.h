@@ -18,8 +18,9 @@ typedef struct
 	registers_t regs, orig;
 	debug_registers_t debug_regs, debug_orig;
 	unsigned char state, signal, exitcode, event;
+	unsigned short flags, oobflags;
 	pid_t pid;
-	int status, flags;
+	int status;
 	void *data; /* free to be used by tracer plugin */
 
 } trace_t;
