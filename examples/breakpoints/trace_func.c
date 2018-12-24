@@ -71,6 +71,12 @@ static void plug_start(trace_t *t, trace_t *parent, void *data)
 		set_breakpoints(t);
 }
 
+static void plug_post_call(trace_t *t, void *data)
+{
+	if (all_breakpoints_resolved(t))
+		trace_syscalls(t, 0);
+}
+
 static void plug_step(trace_t *t, void *data)
 {
 	intptr_t offset;
@@ -93,11 +99,12 @@ static void plug_breakpoint(trace_t *t, void *data)
 		disable_trace(t);
 	}
 	else
-		fprintf(outfile, "%5d: BREAKPOINT UNKNOWN!\n",t->pid);
+		fprintf(outfile, "%5d: BREAKPOINT UNKNOWN! %d %lx\n",t->pid, bpid, get_pc(t));
 }
 
 static void plug_exec(trace_t *t, void *data)
 {
+	trace_syscalls(t, 1);
 	disable_trace(t);
 	reset_maps(t->pid);
 }
@@ -198,7 +205,7 @@ int main(int argc, char **argv)
 	tracer_plugin_t plug = (tracer_plugin_t)
 	{
 //		.pre_call = plug_pre_call,
-//		.post_call = plug_post_call,
+		.post_call = plug_post_call,
 //		.signal = plug_signal,
 		.start = plug_start,
 //		.stop = plug_stop,
