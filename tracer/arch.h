@@ -22,12 +22,30 @@
  *
  */
 
-#ifdef __i386__
+#if defined(__i386__) || defined(__x86_64__)
 
 typedef struct user_regs_struct registers_t;
-typedef struct { int dr[8]; } debug_registers_t;
-#define DEBUGREG_OFFSET (offsetof(struct user, u_debugreg))
+
 #define MAX_BREAKPOINTS (4)
+
+typedef struct
+{
+	unsigned long hw[MAX_BREAKPOINTS];
+	int mapping[MAX_BREAKPOINTS]; /* kernel bug workaround, don't leave any gaps */
+	unsigned char type[MAX_BREAKPOINTS];
+	unsigned char len[MAX_BREAKPOINTS];
+	unsigned long status;
+	unsigned long control;
+
+} debug_registers_t;
+
+#define DEBUGREG_OFFSET(i) (offsetof(struct user, u_debugreg) + i*sizeof(unsigned long))
+#define DEBUG_STATUS_REG  (6)
+#define DEBUG_CONTROL_REG (7)
+
+#endif
+
+#ifdef __i386__
 
 #define ELF_CLASS       ELFCLASS32
 #define ELF_DATA        ELFDATA2LSB
@@ -41,11 +59,6 @@ typedef struct { int dr[8]; } debug_registers_t;
 #endif
 
 #ifdef __x86_64__
-
-typedef struct user_regs_struct registers_t;
-typedef struct { long long int dr[8]; } debug_registers_t;
-#define DEBUGREG_OFFSET (offsetof(struct user, u_debugreg))
-#define MAX_BREAKPOINTS (4)
 
 #define ELF_CLASS       ELFCLASS64
 #define ELF_DATA        ELFDATA2LSB
