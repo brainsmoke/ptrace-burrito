@@ -52,44 +52,6 @@ static trace_t *new_trace(pid_t pid)
 	return t;
 }
 
-static void try_continue_process(trace_t *t)
-{
-	if (t->flags & HOLD)
-		t->flags |= HELD;
-	else
-	{
-		write_modified_regs(t);
-
-		int cont = PTRACE_SYSCALL;
-
-		if ( t->state == DETACH )
-			cont = PTRACE_DETACH;
-
-		if ( t->flags & NOSYSCALL )
-			cont = PTRACE_CONT;
-
-		if (ptrace(cont, t->pid, 0, t->signal) != 0)
-			fatal_error("ptrace failed: %s", strerror(errno));
-
-		if ( t->state == STOP )
-			waitpid(t->pid, NULL, __WALL);
-
-		t->flags &=~ HELD;
-	}
-}
-
-void hold_process(trace_t *t)
-{
-	t->flags |= HOLD;
-}
-
-void release_process(trace_t *t)
-{
-	t->flags &=~ HOLD;
-	if (t->flags & HELD)
-		try_continue_process(t);
-}
-
 void steptrace_process(trace_t *t, int val)
 {
 	if (val)
@@ -178,6 +140,47 @@ static void get_process_info(trace_t *t)
 	 */
 	if ( get_steptrace_process(t) ^ get_trap_flag(t) )
 		set_trap_flag(t, get_steptrace_process(t));
+}
+
+static void try_continue_process(trace_t *t)
+{
+	if (t->flags & HOLD)
+		t->flags |= HELD;
+	else
+	{
+		int cont = PTRACE_SYSCALL;
+
+		if ( t->state == DETACH )
+		{
+			cont = PTRACE_DETACH;
+			detach_cleanup(t);
+		}
+
+		if ( t->flags & NOSYSCALL )
+			cont = PTRACE_CONT;
+
+		write_modified_regs(t);
+
+		if (ptrace(cont, t->pid, 0, t->signal) != 0)
+			fatal_error("ptrace failed: %s", strerror(errno));
+
+		if ( t->state == STOP )
+			waitpid(t->pid, NULL, __WALL);
+
+		t->flags &=~ HELD;
+	}
+}
+
+void hold_process(trace_t *t)
+{
+	t->flags |= HOLD;
+}
+
+void release_process(trace_t *t)
+{
+	t->flags &=~ HOLD;
+	if (t->flags & HELD)
+		try_continue_process(t);
 }
 
 static void handle_event(trace_t *t, trace_t *parent, tracer_plugin_t *plug)
@@ -284,10 +287,12 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		else if (t->event == PTRACE_EVENT_STOP) /* at this point, it must've come from PTRACE_INTERRUPT */
 		{
 			if ( !(t->flags & RELEASE) )
-				fatal_error("unexpected behaviour: process in unexpected stop state");
-
+			{
+				try_continue_process(t);
+				continue;
+//				fatal_error("unexpected behaviour: process in unexpected stop state");
+			}
 			t->state = DETACH;
-			detach_cleanup(t);
 		}
 		else if (t->event) /* clone()/fork()/vfork() */
 		{
@@ -310,13 +315,19 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 
 		handle_event(t, parent, plug);
 
-		try_continue_process(t);
-
 		if (parent)
 		{
 			try_continue_process(parent);
 			parent = NULL;
 		}
+
+		if ( (t->state != DETACH) && (t->flags & RELEASE) )
+		{
+			t->state = DETACH;
+			handle_event(t, parent, plug);
+		}
+
+		try_continue_process(t);
 
 		if ( (t->state == STOP) || (t->state == DETACH) )
 			del_trace(trace_map, t->pid);
