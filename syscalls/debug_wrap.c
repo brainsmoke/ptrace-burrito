@@ -115,10 +115,10 @@ static void print_detach(trace_t *t, void *data)
 static void print_breakpoint(trace_t *t, void *data)
 {
 	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->breakpoint) plug->breakpoint(t, plug->data);
 	fprintf(stderr, "%5d  ", t->pid);
 	fprintf(stderr, "%sBREAKPOINT%s %d\n", hi, n, debug_reg_current_breakpoint(t));
 	fflush(stderr);
+	if (plug->breakpoint) plug->breakpoint(t, plug->data);
 }
 
 tracer_plugin_t debug_wrap(tracer_plugin_t *plug)
