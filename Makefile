@@ -3,8 +3,8 @@ LINK=gcc
 
 LDFLAGS=
 #LDFLAGS=-static
-#CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -I. -g
-CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -Os
+#CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -g
+CFLAGS=-Wall -Wshadow -pedantic -std=gnu99 -Os -g
 STRIP=strip --strip-all
 
 TEST_TARGETS=\
