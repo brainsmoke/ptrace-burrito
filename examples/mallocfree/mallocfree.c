@@ -61,12 +61,18 @@ static void plug_post_call(trace_t *t, void *data)
 static void plug_start(trace_t *t, trace_t *parent, void *data)
 {
 	if (parent == NULL)
+	{
 		set_breakpoints(t);
+		fprintf(outfile, "%d start\n", t->pid);
+	}
+	else
+		fprintf(outfile, "%d clone %d -> %d\n", t->pid, parent->pid, t->pid);
 }
 
 static void plug_exec(trace_t *t, void *data)
 {
 	trace_syscalls(t, 1);
+	fprintf(outfile, "%d execve\n", t->pid);
 }
 
 static pid_t next = -1;
