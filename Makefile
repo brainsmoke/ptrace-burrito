@@ -39,6 +39,7 @@ TEST_TARGETS=\
 
 TARGETS=$(TEST_TARGETS)\
 	tools/hexdiff\
+	tools/get_sym\
 	examples/tracer/writeecho\
 	examples/tracer/faketsc\
 	examples/syscalls/nosignals\
@@ -143,12 +144,26 @@ examples/mallocfree/%: examples/mallocfree/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJE
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
+examples/libc/%.o: examples/libc/%.c
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
 
-tools/%.o: tools/%.c
+examples/libc/%: examples/libc/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
+
+
+
+tools/hexdiff.o: tools/hexdiff.c
 	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
 
-tools/%: tools/%.o $(TRACER_OBJECTS)
+tools/hexdiff: tools/hexdiff.o $(TRACER_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS)
+
+
+tools/get_sym.o: tools/get_sym.c
+	$(CC) $(CFLAGS) -Ighettosym -Imaps -c -o $@ $<
+
+tools/get_sym: tools/get_sym.o $(GHETTOSYM_OBJECTS) $(MAPS_OBJECTS) $(TRACER_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
 
