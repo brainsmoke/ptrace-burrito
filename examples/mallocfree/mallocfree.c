@@ -47,7 +47,7 @@ enum
 static void set_breakpoints(trace_t *t)
 {
 	const char *libname;
-	intptr_t offset;
+	uintptr_t offset;
 
 	libname = get_symbol("malloc", &offset);
 	add_breakpoint_fileoff(t, MALLOC, libname, offset, BP_COPY_EXEC|BP_COPY_CHILD);

@@ -67,12 +67,12 @@ static void plug_breakpoint(trace_t *t, void *data)
 	int bpid = current_breakpoint_id(t);
 	if (bpid >= 0 && bpid < n_call)
 	{
-		intptr_t pc_offset;
+		uintptr_t pc_offset;
 		const char *pc_name = map_name(t->pid, get_pc(t), &pc_offset);
 
 		uintptr_t callee;
 		memload(t->pid, (void *)&callee, (void *)get_sp(t), sizeof(uintptr_t));
-		intptr_t cs_offset;
+		uintptr_t cs_offset;
 		const char *cs_name = map_name(t->pid, callee, &cs_offset);
 	
 		fprintf(outfile, "%d %s [%" PRIxPTR "] call site %s [%" PRIxPTR "]\n",

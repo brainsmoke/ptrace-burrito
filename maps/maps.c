@@ -199,7 +199,7 @@ tag_t *tag(pid_t pid, uintptr_t address)
 	}
 }
 
-const char *map_name(pid_t pid, uintptr_t address, intptr_t *offset)
+const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset)
 {
 	/* fastpath */
 	if (lastpid && (pid == lastpid) && inside(address, lastregion) )

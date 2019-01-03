@@ -25,12 +25,12 @@
 #include "symbols.h"
 #include "maps.h"
 
-const char *get_symbol(const char *symbol, intptr_t *offset)
+const char *get_symbol(const char *symbol, uintptr_t *offset)
 {
 	return get_symbol_from_lib(NULL, symbol, offset);
 }
 
-const char *get_symbol_from_lib(const char *filename, const char *symbol, intptr_t *offset)
+const char *get_symbol_from_lib(const char *filename, const char *symbol, uintptr_t *offset)
 {
 	if (offset)
 		*offset = 0;

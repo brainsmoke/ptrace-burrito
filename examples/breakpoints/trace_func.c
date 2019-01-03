@@ -97,7 +97,7 @@ static void plug_post_call(trace_t *t, void *data)
 
 static void plug_step(trace_t *t, void *data)
 {
-	intptr_t offset;
+	uintptr_t offset;
 	const char *name = map_name(t->pid, t->regs.rip, &offset);
 	fprintf(outfile, "%d %s [%" PRIxPTR "]\n", t->pid, name, offset);
 }

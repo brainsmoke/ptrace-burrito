@@ -36,7 +36,7 @@ typedef struct
 
 
 tag_t *tag(pid_t pid, uintptr_t address);
-const char *map_name(pid_t pid, uintptr_t address, intptr_t *offset);
+const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset);
 void reset_maps(pid_t pid);
 
 /* values in r are trusted :-P, no 64 bit overflow nonsense */
