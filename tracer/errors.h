@@ -26,10 +26,6 @@ void *try_malloc(size_t size);
 void *try_realloc(void *buf, size_t size);
 void *try_strdup(const char *s);
 
-/* insert a callback, to be called on exit */
-typedef void (*error_callback_t)(void *);
-void add_error_callback(error_callback_t func, void *data);
-
 /* print error message and exit program immediately.
  * calls abort instead so that gdb will still have
  * a stack to work with
