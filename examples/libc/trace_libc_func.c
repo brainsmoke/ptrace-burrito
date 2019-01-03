@@ -38,6 +38,9 @@
 
 FILE *outfile = NULL;
 
+/* color-coding output */
+static const char *hi = "\033[0;31m", *blue = "\033[0;34m", *reset = "\033[m";
+
 typedef struct
 {
 	const char *filename;
@@ -101,7 +104,7 @@ static void plug_step(trace_t *t, void *data)
 {
 	uintptr_t offset;
 	const char *name = map_name(t->pid, t->regs.rip, &offset);
-	fprintf(outfile, "%d %s [%" PRIxPTR "]\n", t->pid, name, offset);
+	fprintf(outfile, "%5d %s%s%s [%" PRIxPTR "]\n", t->pid, blue, name, reset, offset);
 }
 
 static void plug_breakpoint(trace_t *t, void *data)
@@ -109,17 +112,23 @@ static void plug_breakpoint(trace_t *t, void *data)
 	int bpid = current_breakpoint_id(t);
 	if (bpid >= CALL_BASE && bpid < CALL_BASE+n_call)
 	{
-		fprintf(outfile, "%5d: call %s()\n",t->pid, call[bpid-CALL_BASE].sym);
+		uintptr_t callee;
+		memload(t->pid, (void *)&callee, (void *)get_sp(t), sizeof(uintptr_t));
+		uintptr_t cs_offset;
+		const char *cs_name = map_name(t->pid, callee, &cs_offset);
+
+		fprintf(outfile, "%5d: call %s%s%s() from %s%s%s [%" PRIxPTR "]\n",
+		                 t->pid, hi, call[bpid-CALL_BASE].sym, reset, blue, cs_name, reset, cs_offset);
 		plug_step(t, data);
 		enable_trace(t);
 	}
 	else if (bpid == RET)
 	{
-		fprintf(outfile, "%5d: return ( 0x%lx )\n",t->pid, get_result(t));
+		fprintf(outfile, "%5d: return ( 0x%lx )\n",t->pid, get_syscall_result(t));
 		disable_trace(t);
 	}
 	else
-		fprintf(outfile, "%5d: BREAKPOINT UNKNOWN! %d %lx\n",t->pid, bpid, get_pc(t));
+		fprintf(outfile, "%5d: %sBREAKPOINT UNKNOWN! %d%s %lx\n",t->pid, hi, bpid, reset, get_pc(t));
 }
 
 static void plug_exec(trace_t *t, void *data)
@@ -225,6 +234,11 @@ int main(int argc, char **argv)
 
 	if (outfile == NULL)
 		outfile = stdout;
+
+	if (!isatty(fileno(outfile)))
+	{
+		hi = blue = reset = "";
+	}
 
 	signal(SIGTERM, sigterm);
 	signal(SIGUSR1, sigusr1);
