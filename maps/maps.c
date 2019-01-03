@@ -28,20 +28,48 @@
 
 #define MAX_REGIONS 65536
 
+typedef struct file_tags_s file_tags_t;
+        struct file_tags_s
+{
+	char *name;
+	uintptr_t size;
+	tag_t *tags;
+
+	file_tags_t *next;
+};
+
+
+typedef struct
+{
+	char *name;
+	uintptr_t base;
+	uintptr_t size;
+	uintptr_t file_offset;
+	tag_t *tags;
+	file_tags_t *file_tags;
+
+} mmap_region_t;
+
 
 typedef struct process_list_s process_list_t;
         struct process_list_s
 {
 	pid_t pid;
-	mmap_region_t *regions, *last, *regions_retired;
+	mmap_region_t *regions, *last;
 	int n_regions;
-	int n_regions_retired;
 	process_list_t *next;
 };
 
 static process_list_t *list = NULL;
-static pid_t lastpid=0;
-static mmap_region_t *lastregion=NULL;
+static pid_t last_tag_pid=0, last_name_pid=0;
+static mmap_region_t *last_tag_region, *last_name_region;
+static file_tags_t *tags_list;
+
+/* values in r are trusted :-P, no 64 bit overflow nonsense */
+static inline int inside(uintptr_t address, mmap_region_t *r)
+{
+	return ( (address - r->base) < r->size );
+}
 
 static FILE *open_maps(pid_t pid)
 {
@@ -95,15 +123,13 @@ mmap_region_t *get_mmap_region(pid_t pid, uintptr_t address, mmap_region_t *r)
 	while (parse_region(f, r))
 		if (inside(address, r))
 		{
-			r->tags = try_malloc(r->size*sizeof(tag_t));
-			memset(r->tags, 0, r->size*sizeof(tag_t));
 			fclose(f);
 			return r;
 		}
-	fatal_error("%s: %lx MAP NOT FOUND", __func__, address);
 	free(r->name);
 	r->name = NULL;
 	fclose(f);
+	fatal_error("%s: %lx MAP NOT FOUND", __func__, address);
 	return NULL;
 }
 
@@ -150,8 +176,6 @@ static process_list_t *find_process(pid_t pid)
 		.pid = pid,
 		.regions = try_malloc(MAX_REGIONS*sizeof(mmap_region_t)),
 		.n_regions = 0,
-		.n_regions_retired = 0,
-		.regions_retired = NULL,
 		.last = NULL,
 	};
 	return list;
@@ -167,11 +191,62 @@ mmap_region_t *find_mmap_region(process_list_t *l, uintptr_t address)
 	return NULL;
 }
 
+static void update_region_tags(file_tags_t *f)
+{
+	process_list_t *l = list;
+	int i;
+	for (l=list; l; l=l->next)
+		for (i=0; i<l->n_regions; i++)
+		{
+			mmap_region_t *r = &l->regions[i];
+			if (r->file_tags == f)
+				r->tags = &f->tags[r->file_offset];
+		}
+}
+
+static void update_file_tags(mmap_region_t *r)
+{
+	file_tags_t *f = tags_list;
+	for (f=tags_list; f; f=f->next)
+		if (strcmp(f->name, r->name) == 0)
+			break;
+
+	uintptr_t size = r->file_offset + r->size;
+
+	if (!f)
+	{
+		f = try_malloc(sizeof(file_tags_t));
+		*f = (file_tags_t)
+		{
+			.name = strdup(r->name),
+			.size = size,
+			.tags = try_malloc(size*sizeof(tag_t)),
+			.next = tags_list,
+		};
+		tags_list = f;
+		memset(f->tags, 0, size*sizeof(tag_t));
+	}
+
+	if (f->size < size)
+	{
+		tag_t *old_buf = f->tags;
+		f->tags = try_realloc(f->tags, size*sizeof(tag_t));
+		memset(&f->tags[f->size], 0, (size-f->size)*sizeof(tag_t));
+		f->size = size;
+
+		if (f->tags != old_buf)
+			update_region_tags(f);
+	}
+
+	r->file_tags = f;
+	r->tags = &f->tags[r->file_offset];
+}
+
 tag_t *tag(pid_t pid, uintptr_t address)
 {
 	/* fastpath */
-	if (lastpid && (pid == lastpid) && inside(address, lastregion) )
-		return &lastregion->tags[address-lastregion->base];
+	if (last_tag_pid && (pid == last_tag_pid) && inside(address, last_tag_region) )
+		return &last_tag_region->tags[address-last_tag_region->base];
 
 	process_list_t *l = find_process(pid);
 	if (!l->last || !inside(address, l->last))
@@ -188,13 +263,16 @@ tag_t *tag(pid_t pid, uintptr_t address)
 
 	if (l->last)
 	{
-		lastpid = pid;
-		lastregion = l->last;
+		if (!l->last->tags)
+			update_file_tags(l->last);
+
+		last_tag_pid = pid;
+		last_tag_region = l->last;
 		return &l->last->tags[address-l->last->base];
 	}
 	else
 	{
-		lastpid = 0;
+		last_tag_pid = 0;
 		return NULL;
 	}
 }
@@ -202,10 +280,10 @@ tag_t *tag(pid_t pid, uintptr_t address)
 const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset)
 {
 	/* fastpath */
-	if (lastpid && (pid == lastpid) && inside(address, lastregion) )
+	if (last_name_pid && (pid == last_name_pid) && inside(address, last_name_region) )
 	{
-		if (offset) *offset = address-lastregion->base+lastregion->file_offset;
-		return lastregion->name;
+		if (offset) *offset = address-last_name_region->base+last_name_region->file_offset;
+		return last_name_region->name;
 	}
 
 	process_list_t *l = find_process(pid);
@@ -223,14 +301,14 @@ const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset)
 
 	if (l->last)
 	{
-		lastpid = pid;
-		lastregion = l->last;
-		if (offset) *offset = address-lastregion->base+lastregion->file_offset;
-		return lastregion->name;
+		last_name_pid = pid;
+		last_name_region = l->last;
+		if (offset) *offset = address-last_name_region->base+last_name_region->file_offset;
+		return last_name_region->name;
 	}
 	else
 	{
-		lastpid = 0;
+		last_name_pid = 0;
 		if (offset) *offset = address;
 		return "<unknown>";
 	}
@@ -238,38 +316,47 @@ const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset)
 
 void reset_maps(pid_t pid)
 {
-	lastpid = 0;
+	last_tag_pid = last_name_pid = 0;
 	process_list_t *l = find_process(pid);
-	if (l->n_regions == 0)
-		return;
 
-	l->regions_retired = try_realloc(l->regions_retired, (l->n_regions + l->n_regions_retired) * sizeof(mmap_region_t));
-	memcpy(&l->regions_retired[l->n_regions_retired], &l->regions[0], l->n_regions*sizeof(mmap_region_t));
-	l->n_regions_retired += l->n_regions;
+	int i;
+	for (i=0; i<l->n_regions; i++)
+		free(l->regions[l->n_regions].name);
 	l->n_regions = 0;
 }
 
-void print_regions(FILE *f, mmap_region_t *regions, int n_regions)
+void reset_tags(void)
 {
-	int i;
-	uintptr_t j;
-	for (i=0; i<n_regions;i++)
+	last_tag_pid = 0;
+	file_tags_t *f;
+	for (f=tags_list; f; f=f->next)
 	{
-		mmap_region_t *r = &regions[i];
-		uintptr_t size = r->size;
-		for (j=0; j<size; j++)
-			if (r->tags[j])
-				fprintf(f, "%s [ %lx ] = %" PRIu64 "\n", r->name, r->file_offset+j, r->tags[j]);
+		if (f->tags)
+		{
+			free(f->tags);
+			f->tags = NULL;
+			f->size = 0;
+		}
 	}
+
+	process_list_t *l = list;
+	int i;
+	for (l=list; l; l=l->next)
+		for (i=0; i<l->n_regions; i++)
+		{
+			mmap_region_t *r = &l->regions[i];
+			r->tags = NULL;
+			r->file_tags = NULL;
+		}
 }
 
 void print_tags(FILE *f)
 {
-	process_list_t *l;
-	for (l=list; l; l=l->next)
-	{
-		print_regions(f, l->regions, l->n_regions);
-		print_regions(f, l->regions_retired, l->n_regions_retired);
-	}
+	file_tags_t *it;
+	uintptr_t j;
+	for (it=tags_list; it; it=it->next)
+		for (j=0; j<it->size; j++)
+			if (it->tags[j])
+				fprintf(f, "%s [ %lx ] = %" PRIu64 "\n", it->name, j, it->tags[j]);
 }
 

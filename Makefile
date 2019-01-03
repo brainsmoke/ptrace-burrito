@@ -49,7 +49,9 @@ TARGETS=$(TEST_TARGETS)\
 	examples/breakpoints/codecov_func\
 	examples/breakpoints/callee\
 	examples/syscalls/printregs\
-	examples/mallocfree/mallocfree
+	examples/libc/mallocfree\
+	examples/libc/trace_libc_func\
+	examples/libc/codecov_libc_func
 
 TRACER_OBJECTS=\
 	tracer/dataset.o\
@@ -135,13 +137,6 @@ examples/breakpoints/%.o: examples/breakpoints/%.c
 
 examples/breakpoints/%: examples/breakpoints/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS)
-
-
-examples/mallocfree/%.o: examples/mallocfree/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
-
-examples/mallocfree/%: examples/mallocfree/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
-	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
 examples/libc/%.o: examples/libc/%.c
