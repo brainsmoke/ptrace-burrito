@@ -802,7 +802,7 @@ void print_trace_call(trace_t *t)
 void print_trace_return(trace_t *t)
 {
 	FILE *out = debug_out();
-	fprintf(out, "%sreturn%s %ld;\n", hi, reset, get_result(t));
+	fprintf(out, "%sreturn%s %ld;\n", hi, reset, get_syscall_result(t));
 }
 
 

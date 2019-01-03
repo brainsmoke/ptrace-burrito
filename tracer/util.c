@@ -446,12 +446,12 @@ unsigned long get_func_result(trace_t *t)
 	return t->regs.eax;
 }
 
-unsigned long get_result(trace_t *t)
+unsigned long get_syscall_result(trace_t *t)
 {
 	return t->regs.eax;
 }
 
-void set_result(trace_t *t, unsigned long val)
+void set_syscall_result(trace_t *t, unsigned long val)
 {
 	t->regs.eax = val;
 }
@@ -572,7 +572,7 @@ void set_syscall(trace_t *t, unsigned long val)
 	t->regs.orig_rax = val;
 }
 
-unsigned long get_result(trace_t *t)
+unsigned long get_syscall_result(trace_t *t)
 {
 	return t->regs.rax;
 }
@@ -582,7 +582,7 @@ unsigned long get_func_result(trace_t *t)
 	return t->regs.rax;
 }
 
-void set_result(trace_t *t, unsigned long val)
+void set_syscall_result(trace_t *t, unsigned long val)
 {
 	t->regs.rax = val;
 }
@@ -819,7 +819,7 @@ static long inject_syscall_finish(trace_t *t, registers_t *orig_regs,
 
 	get_registers(t);
 
-	retval = get_result(t);
+	retval = get_syscall_result(t);
 
 	t->regs = *orig_regs;
 

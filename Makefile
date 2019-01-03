@@ -51,7 +51,8 @@ TARGETS=$(TEST_TARGETS)\
 	examples/syscalls/printregs\
 	examples/libc/mallocfree\
 	examples/libc/trace_libc_func\
-	examples/libc/codecov_libc_func
+	examples/libc/codecov_libc_func\
+	examples/minimal/minimal
 
 TRACER_OBJECTS=\
 	tracer/dataset.o\
@@ -145,6 +146,13 @@ examples/libc/%.o: examples/libc/%.c
 	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
 
 examples/libc/%: examples/libc/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
+
+
+examples/minimal/%.o: examples/minimal/%.c
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
+
+examples/minimal/%: examples/minimal/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
