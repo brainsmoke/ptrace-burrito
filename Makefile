@@ -105,7 +105,7 @@ maps/%.o: maps/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
 breakpoints/%.o: breakpoints/%.c
-	$(CC) $(CFLAGS) -Isyscalls -Itracer -Imaps -c -o $@ $<
+	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
 ghettosym/%.o: ghettosym/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -Imaps -c -o $@ $<

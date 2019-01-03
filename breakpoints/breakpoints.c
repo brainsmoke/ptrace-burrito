@@ -24,7 +24,7 @@
 #include "errors.h"
 #include "trace.h"
 #include "util.h"
-#include "maps.h"
+#include "process.h"
 
 typedef struct breakpoint_s breakpoint_t;
         struct breakpoint_s

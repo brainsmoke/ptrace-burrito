@@ -32,6 +32,4 @@ void print_tags(FILE *f);
 const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset);
 void reset_maps(pid_t pid);
 
-uintptr_t find_code_address(pid_t pid, const char *filename, uintptr_t offset);
-
 #endif /* MAPS_H */

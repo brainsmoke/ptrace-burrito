@@ -20,6 +20,7 @@
 #define PROCESS_H
 
 #include <sys/types.h>
+#include <stdio.h>
 
 void trace_attach(pid_t pid);
 
@@ -28,9 +29,19 @@ pid_t run_traceable(char *path, char *args[], int no_randomize, int notsc);
 pid_t run_traceable_env(char *path, char *args[], char *envp[],
                         int no_randomize, int notsc);
 
+
+FILE *open_maps(pid_t pid);
+
+int parse_region(FILE *f, uintptr_t *base,
+                          uintptr_t *end,
+                          uintptr_t *file_offset,
+                          char *filename_buf, size_t maxlen);
+
+uintptr_t find_code_address(pid_t pid, const char *filename, uintptr_t offset);
+
 /* caller frees */
-char *get_proc_exe(pid_t pid);
-char *get_proc_cwd(pid_t pid);
-char *get_proc_fd(pid_t pid, int fd);
+const char *get_proc_exe(pid_t pid);
+const char *get_proc_cwd(pid_t pid);
+const char *get_proc_fd(pid_t pid, int fd);
 
 #endif /* PROCESS_H */
