@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 {
 	if (argc > 1)
 	{
-		intptr_t offset;
+		uintptr_t offset;
 		const char *libname = get_symbol(argv[1], &offset);
 	
 		if (libname)
