@@ -314,8 +314,6 @@ int main(int argc, char **argv)
 		.data = NULL,
 	};
 
-	tracer_plugin_t wrap = breakpoint_wrap(&plug);
-
 	if (pid == -1)
 	{
 		if (! *argv )
@@ -343,7 +341,7 @@ int main(int argc, char **argv)
 		trace_attach(pid);
 	}
 
-	trace(pid, &wrap);
+	trace(pid, &plug);
 
 	print_tags(outfile);
 	fflush(outfile);

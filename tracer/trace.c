@@ -33,6 +33,7 @@
 #include "trace.h"
 #include "trace_map.h"
 #include "util.h"
+#include "breakpoints.h"
 
 static trace_map_t *trace_map = NULL;
 
@@ -331,6 +332,8 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		else
 			t->state = PRE_CALL;
 
+		update_breakpoints(t, parent);
+
 		handle_event(t, parent, plug);
 
 		if (parent)
@@ -348,7 +351,10 @@ void trace(pid_t pid, tracer_plugin_t *plug)
 		try_continue_process(t);
 
 		if ( (t->state == STOP) || (t->state == DETACH) )
+		{
+			free_breakpoints(t);
 			del_trace(trace_map, t->pid);
+		}
 	}
 
 	if (plug->final)

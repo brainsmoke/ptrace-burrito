@@ -16,7 +16,6 @@
  * limitations under the License.
  */
 
-
 #include <string.h>
 #include <stdlib.h>
 
@@ -210,8 +209,7 @@ int current_breakpoint_id(trace_t *t)
 	return -1;
 }
 
-
-void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
+static void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
 {
 	/* first traced process */
 	if (parent == NULL)
@@ -233,7 +231,7 @@ void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
 		}
 }
 
-void update_breakpoints_on_exec(trace_t *t)
+static void update_breakpoints_on_exec(trace_t *t)
 {
 	breakpoint_t pre = { .next = t->bp_list}, *prev = &pre;
 
@@ -255,7 +253,7 @@ void update_breakpoints_on_exec(trace_t *t)
 	t->bp_list = pre.next;
 }
 
-void update_breakpoints_post_syscall(trace_t *t)
+static void update_breakpoints_post_syscall(trace_t *t)
 {
 	/*
 	 * TODO: deal with unmaps / remaps
@@ -264,93 +262,20 @@ void update_breakpoints_post_syscall(trace_t *t)
 		try_activate_breakpoints(t);
 }
 
-void update_breakpoints_on_exit(trace_t *t)
+void free_breakpoints(trace_t *t)
 {
 	free_bp_list(t->bp_list);
 	t->bp_list = NULL;
 }
 
-static pid_t wrap_pid_selector(void *data)
+void update_breakpoints(trace_t *t, trace_t *parent)
 {
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	return plug->pid_selector(plug->data);
-}
-
-static void wrap_pre_call(trace_t *t, void *data)
-{
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->pre_call) plug->pre_call(t, plug->data);
-}
-
-static void wrap_post_call(trace_t *t, void *data)
-{
-	update_breakpoints_post_syscall(t);
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->post_call) plug->post_call(t, plug->data);
-}
-
-static void wrap_signal(trace_t *t, void *data)
-{
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->signal) plug->signal(t, plug->data);
-}
-
-static void wrap_start(trace_t *t, trace_t *parent, void *data)
-{
-	update_breakpoints_on_fork(parent, t);
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->start) plug->start(t, parent, plug->data);
-}
-
-static void wrap_stop(trace_t *t, void *data)
-{
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->stop) plug->stop(t, plug->data);
-	update_breakpoints_on_exit(t);
-}
-
-static void wrap_step(trace_t *t, void *data)
-{
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->step) plug->step(t, plug->data);
-}
-
-static void wrap_exec(trace_t *t, void *data)
-{
-	update_breakpoints_on_exec(t);
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->exec) plug->exec(t, plug->data);
-}
-
-static void wrap_detach(trace_t *t, void *data)
-{
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->detach) plug->detach(t, plug->data);
-}
-
-static void wrap_breakpoint(trace_t *t, void *data)
-{
-	tracer_plugin_t *plug = (tracer_plugin_t *)data;
-	if (plug->breakpoint) plug->breakpoint(t, plug->data);
-}
-
-tracer_plugin_t breakpoint_wrap(tracer_plugin_t *plug)
-{
-	tracer_plugin_t wrap = (tracer_plugin_t)
+	switch (t->state)
 	{
-		.pre_call = wrap_pre_call,
-		.post_call = wrap_post_call,
-		.signal = wrap_signal,
-		.start = wrap_start,
-		.stop = wrap_stop,
-		.step = wrap_step,
-		.exec = wrap_exec,
-		.detach = wrap_detach,
-		.breakpoint = wrap_breakpoint,
-		.pid_selector = wrap_pid_selector,
-		.data = (void *)plug,
-	};
-
-	return wrap;
+		case START:     update_breakpoints_on_fork(parent, t); break;
+		case EXEC:      update_breakpoints_on_exec(t);         break;
+		case POST_CALL: update_breakpoints_post_syscall(t);    break;
+		default:                                               break;
+	}
 }
 

@@ -80,11 +80,9 @@ int main(int argc, char **argv)
 		.pid_selector = any_pid, /* always returns -1 */
 		.data = NULL,
 	};
-	/* the breakpoint wrapper plugin handles automatic re-enabling of *
-	 * file based break/watchpoints.                                  */
-	tracer_plugin_t wrap = breakpoint_wrap(&plug);
 
 	pid_t pid = run_traceable(argv[1], &argv[1], 0, 0);
-	trace(pid, &wrap);
+	trace(pid, &plug);
 	exit(EXIT_SUCCESS);
 }
+
