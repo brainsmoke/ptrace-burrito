@@ -318,6 +318,7 @@ void print_trace(trace_t *t)
 	fprintf(out, "  exitcode: %d\n", t->exitcode);
 	fprintf(out, "  status: %08x\n", t->status);
 	fprintf(out, "  event: %s\n", ptrace_event_name(t->event));
+	fprintf(out, "  bp_list: %p\n", (void*)t->bp_list);
 	fprintf(out, "  (void*)data: %p\n", t->data);
 }
 
@@ -378,6 +379,11 @@ void print_trace_diff(trace_t *new, trace_t *old)
 	else
 		fprintf(out, "  \033[1mevent: %s / %s\033[m\n",
 		        ptrace_event_name(new->event), ptrace_event_name(old->event));
+
+	if (new->bp_list == old->bp_list)
+		fprintf(out, "  bp_list: %p\n", (void*)new->bp_list);
+	else
+		fprintf(out, "  \033[1mbp_list: %p / %p\033[m\n", (void*)new->bp_list, (void*)old->bp_list);
 
 	if (new->data == old->data)
 		fprintf(out, "  (void*)data: %p\n", new->data);

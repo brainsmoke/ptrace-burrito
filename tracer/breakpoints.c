@@ -26,8 +26,8 @@
 #include "util.h"
 #include "process.h"
 
-typedef struct breakpoint_s breakpoint_t;
-        struct breakpoint_s
+/* typedef struct breakpoint_s breakpoint_t; */
+           struct breakpoint_s
 {
 	int id, type, flags, dr_index;
 
@@ -40,44 +40,6 @@ typedef struct breakpoint_s breakpoint_t;
 
 	breakpoint_t *next;
 };
-
-typedef struct breakpoint_ctx_s breakpoint_ctx_t;
-        struct breakpoint_ctx_s
-{
-	pid_t pid;
-	breakpoint_t *bp;
-
-	breakpoint_ctx_t *next;
-};
-
-static breakpoint_ctx_t *list = NULL;
-static breakpoint_ctx_t *last_ctx = NULL;
-
-static breakpoint_ctx_t *find_bp_ctx(pid_t pid)
-{
-	if (last_ctx && last_ctx->pid == pid)
-		return last_ctx;
-
-	breakpoint_ctx_t *l = list;
-	for (l=list; l; l=l->next)
-	{
-		if (l->pid == pid)
-		{
-			last_ctx = l;
-			return l;
-		}
-	}
-	breakpoint_ctx_t *old_head=list;
-	list = try_malloc(sizeof(breakpoint_ctx_t));
-	*list = (breakpoint_ctx_t)
-	{
-		.next=old_head,
-		.pid = pid,
-		.bp = NULL,
-	};
-	last_ctx = list;
-	return list;
-}
 
 static breakpoint_t *free_bp(breakpoint_t *bp)
 {
@@ -93,30 +55,10 @@ static void free_bp_list(breakpoint_t *l)
 	for (; l ; l = free_bp(l));
 }
 
-static void del_bp_ctx(pid_t pid)
-{
-	last_ctx = NULL;
-	breakpoint_ctx_t pre = { .next = list }, *l;
-
-	for (l=&pre; l->next; l=l->next)
-	{
-		if (l->next->pid == pid)
-		{
-			breakpoint_ctx_t *d = l->next;
-			l->next = l->next->next;
-			free_bp_list(d->bp);
-			free(d);
-			break;
-		}
-	}
-
-	list = pre.next;
-}
-
-static breakpoint_t *find_breakpoint(breakpoint_ctx_t *ctx, int bpid)
+static breakpoint_t *find_breakpoint(trace_t *t, int bpid)
 {
 	breakpoint_t *bp;
-	for (bp=ctx->bp; bp; bp=bp->next)
+	for (bp=t->bp_list; bp; bp=bp->next)
 		if (bp->id == bpid)
 			return bp;
 	return NULL;
@@ -124,8 +66,7 @@ static breakpoint_t *find_breakpoint(breakpoint_ctx_t *ctx, int bpid)
 
 void del_breakpoint(trace_t *t, int bpid)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
-	breakpoint_t pre = { .next = ctx->bp}, *prev;
+	breakpoint_t pre = { .next = t->bp_list}, *prev;
 
 	for (prev=&pre ; prev->next ; prev=prev->next)
 		if (prev->next->id == bpid)
@@ -137,7 +78,7 @@ void del_breakpoint(trace_t *t, int bpid)
 			break;
 		}
 
-	ctx->bp = pre.next;
+	t->bp_list = pre.next;
 }
 
 static void try_resolve_bp(trace_t *t, breakpoint_t *bp)
@@ -167,17 +108,15 @@ static void try_activate_bp(trace_t *t, breakpoint_t *bp)
 
 void try_activate_breakpoints(trace_t *t)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
 	breakpoint_t *bp;
-	for (bp = ctx->bp; bp ; bp=bp->next)
+	for (bp = t->bp_list; bp ; bp=bp->next)
 		try_activate_bp(t, bp);
 }
 
 int all_breakpoints_resolved(trace_t *t)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
 	breakpoint_t *bp;
-	for (bp = ctx->bp; bp ; bp=bp->next)
+	for (bp = t->bp_list; bp ; bp=bp->next)
 		if (!bp->address)
 			return 0;
 
@@ -187,9 +126,8 @@ int all_breakpoints_resolved(trace_t *t)
 static void add_watchpoint(trace_t *t, int bpid, breakpoint_t *bp)
 {
 	del_breakpoint(t, bpid);
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
-	bp->next = ctx->bp,
-	ctx->bp = bp;
+	bp->next = t->bp_list,
+	t->bp_list = bp;
 	try_activate_bp(t, bp);
 }
 
@@ -239,8 +177,7 @@ void add_breakpoint_address(trace_t *t, int bpid, intptr_t address, int flags)
 
 void enable_breakpoint(trace_t *t, int bpid)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
-	breakpoint_t *bp = find_breakpoint(ctx, bpid);
+	breakpoint_t *bp = find_breakpoint(t, bpid);
 	if (bp && (bp->flags & BP_DISABLED) )
 	{
 		bp->flags &=~ BP_DISABLED;
@@ -250,8 +187,7 @@ void enable_breakpoint(trace_t *t, int bpid)
 
 void disable_breakpoint(trace_t *t, int bpid)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
-	breakpoint_t *bp = find_breakpoint(ctx, bpid);
+	breakpoint_t *bp = find_breakpoint(t, bpid);
 	if (bp && !(bp->flags & BP_DISABLED) )
 	{
 		bp->flags |= BP_DISABLED;
@@ -265,10 +201,9 @@ void disable_breakpoint(trace_t *t, int bpid)
 
 int current_breakpoint_id(trace_t *t)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
 	int dr_index = debug_reg_current_breakpoint(t);
 	breakpoint_t *bp;
-	for (bp = ctx->bp; bp ; bp=bp->next)
+	for (bp = t->bp_list; bp ; bp=bp->next)
 		if (bp->dr_index == dr_index)
 			return bp->id;
 
@@ -282,10 +217,8 @@ void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
 	if (parent == NULL)
 		return;
 
-	breakpoint_ctx_t *src_ctx = find_bp_ctx(parent->pid);
-
 	breakpoint_t *bp, *new_bp;
-	for (bp = src_ctx->bp; bp ; bp = bp->next)
+	for (bp = parent->bp_list; bp ; bp = bp->next)
 		if ( bp->flags & BP_COPY_CHILD )
 		{
 			new_bp = (breakpoint_t*)try_malloc(sizeof(breakpoint_t));
@@ -302,8 +235,7 @@ void update_breakpoints_on_fork(trace_t *parent, trace_t *child)
 
 void update_breakpoints_on_exec(trace_t *t)
 {
-	breakpoint_ctx_t *ctx = find_bp_ctx(t->pid);
-	breakpoint_t pre = { .next = ctx->bp}, *prev = &pre;
+	breakpoint_t pre = { .next = t->bp_list}, *prev = &pre;
 
 	while (prev->next)
 	{
@@ -320,7 +252,7 @@ void update_breakpoints_on_exec(trace_t *t)
 			prev->next = free_bp(prev->next);
 	}
 
-	ctx->bp = pre.next;
+	t->bp_list = pre.next;
 }
 
 void update_breakpoints_post_syscall(trace_t *t)
@@ -334,7 +266,8 @@ void update_breakpoints_post_syscall(trace_t *t)
 
 void update_breakpoints_on_exit(trace_t *t)
 {
-	del_bp_ctx(t->pid);
+	free_bp_list(t->bp_list);
+	t->bp_list = NULL;
 }
 
 static pid_t wrap_pid_selector(void *data)

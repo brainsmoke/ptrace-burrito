@@ -63,7 +63,8 @@ TRACER_OBJECTS=\
 	tracer/trace.o\
 	tracer/trace_map.o\
 	tracer/util.o\
-	tracer/process.o
+	tracer/process.o\
+	tracer/breakpoints.o
 
 SYSCALLS_OBJECTS=\
 	syscalls/debug_syscalls.o\
@@ -73,15 +74,12 @@ SYSCALLS_OBJECTS=\
 MAPS_OBJECTS=\
 	maps/maps.o
 
-BREAKPOINTS_OBJECTS=\
-	breakpoints/breakpoints.o
-
 GHETTOSYM_OBJECTS=\
 	ghettosym/symbols.o
 
 TOOLS_OBJECTS=tools/hexdiff.o tools/get_sym.o
 
-OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS) $(TOOLS_OBJECTS)
+OBJECTS=$(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS) $(TOOLS_OBJECTS)
 
 CLEAN=$(TARGETS) $(OBJECTS)
 
@@ -102,9 +100,6 @@ syscalls/%.o: syscalls/%.c
 	$(CC) $(CFLAGS) -Itracer -c -o $@ $<
 
 maps/%.o: maps/%.c
-	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
-
-breakpoints/%.o: breakpoints/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
 ghettosym/%.o: ghettosym/%.c
@@ -136,23 +131,23 @@ examples/maps/%: examples/maps/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_
 
 
 examples/breakpoints/%.o: examples/breakpoints/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -c -o $@ $<
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -c -o $@ $<
 
-examples/breakpoints/%: examples/breakpoints/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS)
+examples/breakpoints/%: examples/breakpoints/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS)
 
 
 examples/libc/%.o: examples/libc/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
 
-examples/libc/%: examples/libc/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
+examples/libc/%: examples/libc/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
 examples/minimal/%.o: examples/minimal/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ibreakpoints -Ighettosym -c -o $@ $<
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
 
-examples/minimal/%: examples/minimal/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(BREAKPOINTS_OBJECTS) $(GHETTOSYM_OBJECTS)
+examples/minimal/%: examples/minimal/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 

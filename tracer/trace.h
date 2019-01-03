@@ -24,6 +24,8 @@
 
 #include "arch.h"
 
+typedef struct breakpoint_s breakpoint_t;
+
 #define CALL_SIGTRAP (0x85)
 
 /* possible states */
@@ -39,6 +41,7 @@ typedef struct
 	unsigned short flags, oobflags;
 	pid_t pid;
 	int status;
+	breakpoint_t *bp_list;
 	void *data; /* free to be used by tracer plugin */
 
 } trace_t;
