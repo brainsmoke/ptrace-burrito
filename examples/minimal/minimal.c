@@ -11,9 +11,9 @@
 #include "breakpoints.h"
 #include "debug_syscalls.h"
 
-int step = 0;
+int steptrace = 0;
 
-void plug_start(trace_t *t, trace_t *parent, void *data)
+void start(trace_t *t, trace_t *parent, void *data)
 {
 	if (parent == 0)
 	{
@@ -25,58 +25,58 @@ void plug_start(trace_t *t, trace_t *parent, void *data)
 	else
 		printf("%5d: CLONE parent = %d\n", t->pid, parent->pid);
 
-	if (step) steptrace_process(t, 1);
+	if (steptrace) steptrace_process(t, 1);
 }
 
-void plug_stop(trace_t *t, void *data)
+void stop(trace_t *t, void *data)
 {
 	printf("%5d: STOPPED\n", t->pid);
 }
 
-void plug_exec(trace_t *t, void *data)
+void exec(trace_t *t, void *data)
 {
 	printf("%5d: EXEC!\n", t->pid);
 }
 
-void plug_pre_call(trace_t *t, void *data)
+void pre_call(trace_t *t, void *data)
 {
 	printf("%5d: %s(...) = ...\n", t->pid, syscall_name(get_syscall(t)));
 }
 
-void plug_post_call(trace_t *t, void *data)
+void post_call(trace_t *t, void *data)
 {
 	printf("%5d: ... = %lx\n", t->pid, get_syscall_result(t));
 }
 
-void plug_signal(trace_t *t, void *data)
+void signal_event(trace_t *t, void *data)
 {
 	printf("%5d: SIGNAL %d\n", t->pid, t->signal);
 }
 
-void plug_breakpoint(trace_t *t, void *data)
+void breakpoint(trace_t *t, void *data)
 {
 	printf("%5d: BREAKPOINT on malloc @ %lx\n", t->pid, get_pc(t));
 }
 
-void plug_step(trace_t *t, void *data)
+void step(trace_t *t, void *data)
 {
 	printf("%5d: step @ [%lx]\n", t->pid, get_pc(t));
 }
 
 int main(int argc, char **argv)
 {
-	if (strcmp(argv[1], "-step") == 0) { step = 1; argv++; }
+	if (strcmp(argv[1], "-step") == 0) { steptrace = 1; argv++; }
 
 	tracer_plugin_t plug = (tracer_plugin_t)
 	{
-		.start = plug_start,
-		.stop = plug_stop,
-		.pre_call = plug_pre_call,
-		.post_call = plug_post_call,
-		.signal = plug_signal,
-		.exec = plug_exec,
-		.breakpoint = plug_breakpoint,
-		.step = plug_step,
+		.start = start,
+		.stop = stop,
+		.pre_call = pre_call,
+		.post_call = post_call,
+		.signal = signal_event,
+		.exec = exec,
+		.breakpoint = breakpoint,
+		.step = step,
 		.pid_selector = any_pid, /* always returns -1 */
 		.data = NULL,
 	};
