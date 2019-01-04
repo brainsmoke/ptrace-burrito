@@ -22,8 +22,10 @@
 #include <sys/types.h>
 #include <stdio.h>
 
+/* attach to existing process */
 void trace_attach(pid_t pid);
 
+/* trace a new process */
 pid_t run_traceable(char *path, char *args[], int no_randomize, int notsc);
 
 pid_t run_traceable_env(char *path, char *args[], char *envp[],

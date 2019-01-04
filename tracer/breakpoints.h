@@ -36,6 +36,16 @@ enum
 	BP_ADDRESS    = 2,
 };
 
+/* Add hardware breakpoints / watchpoints
+ *
+ * The only restriction on bpid is that it should be a unique identifier
+ * You can add more breakpoints/watchpoints than available on your platform as long
+ * as they are not all enabled at the same time.
+ *
+ * The tracer looks for mmap syscalls to see if file-based breakpoints are ready to be
+ * enabled.
+ */
+
 void add_breakpoint_fileoff(trace_t *t, int bpid, const char *filename, intptr_t offset, int flags);
 void add_watchpoint_fileoff(trace_t *t, int bpid, const char *filename, intptr_t offset, int prot, int size, int flags);
 
@@ -51,6 +61,7 @@ void try_activate_breakpoints(trace_t *t);
 
 int current_breakpoint_id(trace_t *t);
 
+/* added to know when it's safe to skip tracing syscalls pending breakpoint loads */
 int all_breakpoints_resolved(trace_t *t);
 
 /* used by tracer */

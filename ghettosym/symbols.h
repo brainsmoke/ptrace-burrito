@@ -21,6 +21,9 @@
 
 #include <stdint.h>
 
+/* Get the canonical filename & file-offset of a symbol
+ * Very hackish, uses dlsym() in combination with parsing /proc/self/maps
+ */
 const char *get_symbol(const char *symbol, uintptr_t *offset);
 const char *get_symbol_from_lib(const char *filename, const char *symbol, uintptr_t *offset);
 

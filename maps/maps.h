@@ -23,13 +23,22 @@
 #include <stdint.h>
 #include <stdio.h>
 
+/* Tagging support for file-backed memory.  Useful for code-coverage
+ *
+ */
+
 typedef uint64_t tag_t;
 
 tag_t *tag(pid_t pid, uintptr_t address);
 void reset_tags(void);
 void print_tags(FILE *f);
 
+/* get filename / file offset of an address in memory */
 const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset);
+
+/* clear stale data (for example in case of an exec) */
 void reset_maps(pid_t pid);
+
+/* TODO: range unmap */
 
 #endif /* MAPS_H */

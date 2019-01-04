@@ -67,11 +67,6 @@ int debug_reg_unset_breakpoint(trace_t *t, int index);
 void get_siginfo(pid_t pid, siginfo_t *info);
 void set_siginfo(pid_t pid, siginfo_t *info);
 
-/*
- * The following functions only read/change the registers in trace_t:
- * the caller should call set_registers() to make it definite
- */
-
 uintptr_t get_pc(trace_t *t);
 void set_pc(trace_t *t, uintptr_t val);
 
