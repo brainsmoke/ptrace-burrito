@@ -168,6 +168,14 @@ static int get_breakpoint_size(int len_field)
 #define DR7_TYPE_FIELD(i, type) ( (type)<<DR7_TYPE_FIELD_SHIFT(i) )
 #define DR7_LEN_FIELD(i, len) ((len)<<DR7_LEN_FIELD_SHIFT(i))
 
+/* Break/watchpoints are subtly broken on Linux, the code below is a workaround.
+ * We force allocation of debug registers in ascending order, leaving no gaps at
+ * any time.  Linux remaps these registers internally, but does not correctly
+ * remap the debug status flags in case more than one event fired
+ * (like watchpoint + trap flag)
+ * We re-remap these registers in this arch-specific code section  :-/
+ */
+
 static void compact_debugregs(trace_t *t)
 {
 	int incr = 0, decr = MAX_BREAKPOINTS-1;
