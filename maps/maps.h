@@ -33,7 +33,9 @@ tag_t *tag(pid_t pid, uintptr_t address);
 void reset_tags(void);
 void print_tags(FILE *f);
 
-/* get filename / file offset of an address in memory */
+/* get filename / file offset of an address in memory,
+ * result is valid until the next reset_maps(same_pid), should not be freed.
+ */
 const char *map_name(pid_t pid, uintptr_t address, uintptr_t *offset);
 
 /* clear stale data (for example in case of an exec) */

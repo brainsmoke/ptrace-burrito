@@ -43,7 +43,9 @@ TARGETS=$(TEST_TARGETS)\
 	examples/tracer/writeecho\
 	examples/tracer/faketsc\
 	examples/syscalls/nosignals\
+	examples/syscalls/syscalls\
 	examples/maps/codecov\
+	examples/maps/codecov_order\
 	examples/breakpoints/between\
 	examples/breakpoints/trace_func\
 	examples/breakpoints/codecov_func\
@@ -52,7 +54,8 @@ TARGETS=$(TEST_TARGETS)\
 	examples/libc/mallocfree\
 	examples/libc/trace_libc_func\
 	examples/libc/codecov_libc_func\
-	examples/minimal/minimal
+	examples/minimal/minimal\
+	examples/hacks/fixup
 
 TRACER_OBJECTS=\
 	tracer/dataset.o\
@@ -141,6 +144,13 @@ examples/libc/%.o: examples/libc/%.c
 	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
 
 examples/libc/%: examples/libc/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
+	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
+
+
+examples/hacks/%.o: examples/hacks/%.c
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
+
+examples/hacks/%: examples/hacks/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
