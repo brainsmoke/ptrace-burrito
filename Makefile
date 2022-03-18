@@ -78,7 +78,7 @@ MAPS_OBJECTS=\
 	maps/maps.o
 
 GHETTOSYM_OBJECTS=\
-	ghettosym/symbols.o
+	hackishsym/symbols.o
 
 TOOLS_OBJECTS=tools/hexdiff.o tools/get_sym.o
 
@@ -105,7 +105,7 @@ syscalls/%.o: syscalls/%.c
 maps/%.o: maps/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -c -o $@ $<
 
-ghettosym/%.o: ghettosym/%.c
+hackishsym/%.o: hackishsym/%.c
 	$(CC) $(CFLAGS) -Isyscalls -Itracer -Imaps -c -o $@ $<
 
 
@@ -141,21 +141,21 @@ examples/breakpoints/%: examples/breakpoints/%.o $(TRACER_OBJECTS) $(SYSCALLS_OB
 
 
 examples/libc/%.o: examples/libc/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ihackishsym -c -o $@ $<
 
 examples/libc/%: examples/libc/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
 examples/hacks/%.o: examples/hacks/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ihackishsym -c -o $@ $<
 
 examples/hacks/%: examples/hacks/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
 
 
 examples/minimal/%.o: examples/minimal/%.c
-	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ighettosym -c -o $@ $<
+	$(CC) $(CFLAGS) -Imaps -Isyscalls -Itracer -Ihackishsym -c -o $@ $<
 
 examples/minimal/%: examples/minimal/%.o $(TRACER_OBJECTS) $(SYSCALLS_OBJECTS) $(MAPS_OBJECTS) $(GHETTOSYM_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
@@ -170,7 +170,7 @@ tools/hexdiff: tools/hexdiff.o $(TRACER_OBJECTS)
 
 
 tools/get_sym.o: tools/get_sym.c
-	$(CC) $(CFLAGS) -Ighettosym -Imaps -c -o $@ $<
+	$(CC) $(CFLAGS) -Ihackishsym -Imaps -c -o $@ $<
 
 tools/get_sym: tools/get_sym.o $(GHETTOSYM_OBJECTS) $(MAPS_OBJECTS) $(TRACER_OBJECTS)
 	$(LINK) -o $@ $^ $(LDFLAGS) -ldl
